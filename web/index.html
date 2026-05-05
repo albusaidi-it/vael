@@ -382,6 +382,48 @@
       margin-bottom: 12px;
     }
 
+    /* ── Delta Tracker ───────────────────────────────── */
+    .delta-stat-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+    .delta-stat {
+      flex:1; min-width:90px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .delta-stat .num { font-size:1.5rem; font-weight:700; letter-spacing:-0.5px; }
+    .delta-stat .lbl { font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+    .delta-change-row {
+      display:flex; align-items:flex-start; gap:12px;
+      padding:10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size:0.86rem;
+    }
+    .delta-change-row:last-child { border-bottom:none; }
+    .delta-badge {
+      display:inline-block; padding:3px 8px;
+      border-radius:5px; font-size:0.71rem; font-weight:700;
+      white-space:nowrap; letter-spacing:0.03em;
+    }
+    .delta-badge.new-cve     { background:rgba(0,113,227,0.15); color:var(--accent-hi); }
+    .delta-badge.tier-up     { background:rgba(255,69,58,0.14); color:var(--red); }
+    .delta-badge.tier-down   { background:rgba(48,209,88,0.12); color:var(--green); }
+    .delta-badge.kev-added   { background:rgba(255,69,58,0.14); color:var(--red); }
+    .delta-badge.kev-removed { background:rgba(48,209,88,0.12); color:var(--green); }
+    .delta-badge.epss-spike  { background:rgba(255,159,10,0.13); color:var(--orange); }
+    .delta-badge.epss-drop   { background:rgba(48,209,88,0.12); color:var(--green); }
+    .delta-badge.maturity    { background:rgba(255,159,10,0.13); color:var(--orange); }
+    .delta-badge.new-poc     { background:rgba(191,90,242,0.13); color:var(--purple); }
+    .delta-badge.new-weapon  { background:rgba(255,69,58,0.14); color:var(--red); }
+    .delta-badge.removed     { background:rgba(134,134,139,0.13); color:var(--muted); }
+    .delta-timeline {
+      display:flex; gap:8px; align-items:center;
+      font-size:0.78rem; color:var(--muted);
+      margin-bottom:20px;
+    }
+    .delta-timeline strong { color:var(--text); }
+
     /* ── RTL overrides ───────────────────────────────── */
     [dir="rtl"] .form-group input,
     [dir="rtl"] .form-group select   { text-align: right; }
@@ -511,6 +553,7 @@
         <div class="tab" onclick="switchTab('stage3')" data-i18n="tabPoC">Public PoCs</div>
         <div class="tab" onclick="switchTab('exposure')" data-i18n="tabExposure">Global Exposure</div>
         <div class="tab" onclick="switchTab('verdict')" data-i18n="tabVerdict">AI Verdict</div>
+        <div class="tab" onclick="switchTab('delta')" data-i18n="tabDelta">Delta Tracker</div>
       </div>
       <div style="padding:20px 24px;">
         <div id="tab-stage1"   class="tab-panel active"></div>
@@ -526,6 +569,16 @@
           <div id="exposureOutput" style="margin-top:20px;"></div>
         </div>
         <div id="tab-verdict"  class="tab-panel"></div>
+        <div id="tab-delta"    class="tab-panel">
+          <p style="color:var(--muted);font-size:0.86rem;margin-bottom:16px;line-height:1.6;" data-i18n="deltaDesc">
+            Compare today's analysis against the saved baseline to surface new CVEs, tier escalations, KEV additions, EPSS spikes, and new public exploits. Run this repeatedly to track the threat landscape over time.
+          </p>
+          <div id="deltaBaselineInfo" style="margin-bottom:16px;"></div>
+          <button class="btn btn-primary" id="deltaRunBtn" onclick="runDeltaAnalysis()">
+            <span data-i18n="btnRunDelta">Run Delta Analysis</span>
+          </button>
+          <div id="deltaOutput" style="margin-top:20px;"></div>
+        </div>
       </div>
     </div>
 
@@ -703,8 +756,17 @@
       tabPoC: 'Public PoCs',
       tabExposure: 'Global Exposure',
       tabVerdict: 'AI Verdict',
+      tabDelta: 'Delta Tracker',
       exposureDesc: 'Query Shodan, Censys, FOFA, and ZoomEye to count globally internet-exposed hosts running the analyzed software. Results are cached for 6 hours.',
       btnCheckExposure: 'Check Global Exposure',
+      deltaDesc: 'Compare today\'s analysis against the saved baseline to surface new CVEs, tier escalations, KEV additions, EPSS spikes, and new public exploits. Run repeatedly to track the threat landscape over time.',
+      btnRunDelta: 'Run Delta Analysis',
+      deltaNoSoftware: 'Run the main analysis first, then return here to compare against the baseline.',
+      deltaChecking: 'Checking baseline status…',
+      deltaNoBaseline: 'No baseline saved yet — this run will create one.',
+      deltaHasBaseline: 'Baseline saved',
+      deltaRunning: 'Running delta analysis…',
+      deltaNoChanges: 'No changes detected since last baseline.',
       omanTitle: '🇴🇲 Oman Internet Exposure',
       omanPowered: 'Powered by Shodan · FOFA · Censys · ZoomEye',
       omanDesc: 'Search for publicly reachable hosts inside Oman running a given software or exposed to a specific vulnerability. Independent from the main analysis.',
@@ -753,8 +815,17 @@
       tabPoC: 'إثباتات الاختراق',
       tabExposure: 'التعرض العالمي',
       tabVerdict: 'حكم الذكاء الاصطناعي',
+      tabDelta: 'متتبع التغييرات',
       exposureDesc: 'استعلم من Shodan وCensys وFOFA وZoomEye لحساب المضيفين المكشوفين على الإنترنت الذين يشغّلون البرنامج المحلل. تُخزَّن النتائج مؤقتاً لمدة 6 ساعات.',
       btnCheckExposure: 'فحص التعرض العالمي',
+      deltaDesc: 'قارن تحليل اليوم بالخط الأساسي المحفوظ لرصد CVEs الجديدة، وتصعيد الأولويات، وإضافات KEV، وارتفاع EPSS، وثغرات الاستغلال الجديدة.',
+      btnRunDelta: 'تشغيل تحليل الفروقات',
+      deltaNoSoftware: 'قم بتشغيل التحليل الرئيسي أولاً، ثم ارجع هنا للمقارنة مع الخط الأساسي.',
+      deltaChecking: 'جارٍ التحقق من حالة الخط الأساسي…',
+      deltaNoBaseline: 'لا يوجد خط أساسي محفوظ — سيتم إنشاؤه بهذا التشغيل.',
+      deltaHasBaseline: 'تم حفظ الخط الأساسي',
+      deltaRunning: 'جارٍ تشغيل تحليل الفروقات…',
+      deltaNoChanges: 'لم يتم رصد أي تغييرات منذ آخر خط أساسي.',
       omanTitle: '🇴🇲 التعرض الإنترنتي في عُمان',
       omanPowered: 'مدعوم من Shodan · FOFA · Censys · ZoomEye',
       omanDesc: 'ابحث عن المضيفين المكشوفين على الإنترنت داخل عُمان الذين يشغّلون برنامجاً معيناً أو مكشوفون لثغرة محددة.',
@@ -832,13 +903,14 @@
 
   // ── Tab management ────────────────────────────────────────────────────
   function switchTab(name) {
-    const names = ['stage1','stage2','stage3','exposure','verdict'];
+    const names = ['stage1','stage2','stage3','exposure','verdict','delta'];
     document.querySelectorAll('.tab').forEach((tab, i) => {
       tab.classList.toggle('active', names[i] === name);
     });
     document.querySelectorAll('.tab-panel').forEach(p => {
       p.classList.toggle('active', p.id === `tab-${name}`);
     });
+    if (name === 'delta') _checkDeltaBaseline();
   }
 
   function setStatus(msg, type = 'info') {
@@ -1725,6 +1797,152 @@
       <div style="margin-bottom:24px;line-height:1.8;font-size:0.9rem">${paras}</div>
       <div class="section-label" style="margin-bottom:10px">Key Evidence</div>
       <ul class="evidence-list">${evidenceItems}</ul>`;
+  }
+
+  // ── Delta Tracker ─────────────────────────────────────────────────────
+  const _DELTA_BADGE = {
+    NEW_CVE:        ['new-cve',    '+ NEW CVE'],
+    TIER_UPGRADE:   ['tier-up',    '▲ TIER UP'],
+    TIER_DOWNGRADE: ['tier-down',  '▼ TIER DOWN'],
+    KEV_ADDED:      ['kev-added',  '🔴 KEV ADDED'],
+    KEV_REMOVED:    ['kev-removed','KEV REMOVED'],
+    EPSS_SPIKE:     ['epss-spike', '▲ EPSS SPIKE'],
+    EPSS_DROP:      ['epss-drop',  '▼ EPSS DROP'],
+    MATURITY_CHANGE:['maturity',   '⚠ MATURITY'],
+    NEW_POC:        ['new-poc',    '+ NEW POC'],
+    NEW_WEAPON:     ['new-weapon', '⚠ WEAPONIZED'],
+    REMOVED_CVE:    ['removed',    '− REMOVED'],
+  };
+
+  async function _checkDeltaBaseline() {
+    const sw  = _currentSoftware;
+    const ver = _currentVersion;
+    const info = document.getElementById('deltaBaselineInfo');
+    if (!sw || !ver) {
+      info.innerHTML = `<p style="color:var(--muted);font-size:0.85rem">${t('deltaNoSoftware')}</p>`;
+      return;
+    }
+    info.innerHTML = `<p style="color:var(--muted);font-size:0.85rem">${t('deltaChecking')}</p>`;
+    try {
+      const r = await fetch(`/monitor/${encodeURIComponent(sw)}/${encodeURIComponent(ver)}`);
+      const d = await r.json();
+      if (d.has_baseline) {
+        const saved = d.saved_at ? new Date(d.saved_at).toLocaleString() : '—';
+        info.innerHTML = `<div style="padding:10px 14px;background:rgba(48,209,88,0.07);border:1px solid rgba(48,209,88,0.25);border-radius:var(--radius-sm);font-size:0.84rem;">
+          <span style="color:var(--green);font-weight:600">${t('deltaHasBaseline')}</span>
+          <span style="color:var(--muted);margin-left:12px">${sw} ${ver} · ${saved} · ${d.cve_count ?? 0} CVEs</span>
+        </div>`;
+      } else {
+        info.innerHTML = `<div style="padding:10px 14px;background:rgba(255,159,10,0.06);border:1px solid rgba(255,159,10,0.25);border-radius:var(--radius-sm);font-size:0.84rem;color:var(--orange)">${t('deltaNoBaseline')}</div>`;
+      }
+    } catch (e) {
+      info.innerHTML = '';
+    }
+  }
+
+  async function runDeltaAnalysis() {
+    const sw  = _currentSoftware || document.getElementById('software').value.trim();
+    const ver = _currentVersion  || document.getElementById('version').value.trim();
+    if (!sw || !ver) {
+      document.getElementById('deltaOutput').innerHTML =
+        `<p style="color:var(--muted);font-size:0.85rem">${t('deltaNoSoftware')}</p>`;
+      return;
+    }
+    const btn = document.getElementById('deltaRunBtn');
+    btn.disabled = true;
+    document.getElementById('deltaOutput').innerHTML =
+      `<p style="color:var(--muted);font-size:0.85rem">${t('deltaRunning')}</p>`;
+
+    try {
+      const body = { software: sw, version: ver };
+      const r = await fetch('/analyze/delta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ detail: r.statusText }));
+        document.getElementById('deltaOutput').innerHTML =
+          `<p style="color:var(--red);font-size:0.85rem">Error: ${err.detail || r.statusText}</p>`;
+        return;
+      }
+      const report = await r.json();
+      _renderDelta(report);
+      await _checkDeltaBaseline();
+    } catch (e) {
+      document.getElementById('deltaOutput').innerHTML =
+        `<p style="color:var(--red);font-size:0.85rem">Request failed: ${e.message}</p>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function _renderDelta(r) {
+    const out = document.getElementById('deltaOutput');
+    const changes = r.changes || [];
+
+    if (!changes.length) {
+      out.innerHTML = `<p style="color:var(--green);font-size:0.9rem;padding:16px 0">${t('deltaNoChanges')}</p>`;
+      return;
+    }
+
+    const baseFmt = r.baseline_ts ? new Date(r.baseline_ts).toLocaleString() : null;
+    const curFmt  = r.current_ts  ? new Date(r.current_ts).toLocaleString()  : new Date().toLocaleString();
+
+    const timeline = baseFmt
+      ? `<div class="delta-timeline">
+           <strong>${baseFmt}</strong>
+           <span style="font-size:1rem">→</span>
+           <strong>${curFmt}</strong>
+         </div>`
+      : `<div class="delta-timeline"><strong>First analysis — baseline established at ${curFmt}</strong></div>`;
+
+    const highSignal = changes.filter(c =>
+      ['NEW_CVE','TIER_UPGRADE','KEV_ADDED','EPSS_SPIKE','NEW_WEAPON','MATURITY_CHANGE'].includes(c.change_type)
+    );
+
+    const statItems = [
+      { num: r.new_cves,       lbl: 'New CVEs',       color: r.new_cves     ? 'var(--red)'    : '' },
+      { num: r.tier_upgrades,  lbl: 'Tier Upgrades',  color: r.tier_upgrades? 'var(--orange)' : '' },
+      { num: r.kev_additions,  lbl: 'KEV Added',      color: r.kev_additions? 'var(--red)'    : '' },
+      { num: r.epss_spikes,    lbl: 'EPSS Spikes',    color: r.epss_spikes  ? 'var(--orange)' : '' },
+      { num: r.new_pocs,       lbl: 'New PoCs',       color: r.new_pocs     ? 'var(--purple)' : '' },
+      { num: r.new_weapons,    lbl: 'Weaponized',     color: r.new_weapons  ? 'var(--red)'    : '' },
+      { num: r.removed_cves,   lbl: 'Removed',        color: '' },
+    ].map(s =>
+      `<div class="delta-stat">
+         <div class="num" style="${s.color ? `color:${s.color}` : 'color:var(--text)'}">${s.num ?? 0}</div>
+         <div class="lbl">${s.lbl}</div>
+       </div>`
+    ).join('');
+
+    const sortOrder = ['NEW_WEAPON','KEV_ADDED','TIER_UPGRADE','MATURITY_CHANGE','EPSS_SPIKE','NEW_CVE','NEW_POC','EPSS_DROP','TIER_DOWNGRADE','KEV_REMOVED','REMOVED_CVE'];
+    const sorted = [...changes].sort((a,b) => sortOrder.indexOf(a.change_type) - sortOrder.indexOf(b.change_type));
+
+    const rows = sorted.map(c => {
+      const [cls, label] = _DELTA_BADGE[c.change_type] || ['new-poc', c.change_type];
+      const oldNew = (c.old_value && c.new_value)
+        ? `<span style="color:var(--muted)">${c.old_value} → </span><strong>${c.new_value}</strong>`
+        : (c.new_value ? `<strong>${c.new_value}</strong>` : '');
+      return `<div class="delta-change-row">
+        <div style="min-width:90px"><span class="delta-badge ${cls}">${label}</span></div>
+        <div style="flex:0 0 130px;font-family:var(--mono);font-size:0.83rem;color:var(--accent-hi)">${c.cve_id}</div>
+        <div style="flex:1;color:var(--muted)">${c.detail || ''} ${oldNew}</div>
+      </div>`;
+    }).join('');
+
+    const criticalBanner = r.has_critical_changes
+      ? `<div style="padding:12px 16px;background:rgba(255,69,58,0.08);border:1px solid rgba(255,69,58,0.3);border-radius:var(--radius-sm);margin-bottom:20px;color:var(--red);font-weight:600;font-size:0.88rem">
+           ⚠ Critical changes detected — ${highSignal.length} high-signal event${highSignal.length !== 1 ? 's' : ''} require attention
+         </div>`
+      : '';
+
+    out.innerHTML = `
+      ${timeline}
+      ${criticalBanner}
+      <div class="delta-stat-row">${statItems}</div>
+      <div class="section-label" style="margin-bottom:12px">Change Log (${changes.length})</div>
+      <div>${rows}</div>`;
   }
 
   // ── Init ──────────────────────────────────────────────────────────────

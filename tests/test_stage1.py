@@ -13,11 +13,12 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
+from unittest.mock import patch
 
 from core.cve_mapper import run_stage1
 from core.version_utils import version_in_range, _normalize
 from core.misconfig_mapper import get_misconfig_flags
-from schemas.stage1 import Severity, CPEMatch
+from schemas.stage1 import Severity, CPEMatch, CVERecord, CVSSv3
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -86,6 +87,41 @@ def test_misconfig_unknown():
     flags = get_misconfig_flags("totally_unknown_software_xyz")
     assert flags == []
     print("✓ misconfig unknown: empty list returned")
+
+
+# ─────────────────────────────────────────────────────────────────
+# Unit tests – run_stage1 orchestration (mocked fetchers, no network)
+# ─────────────────────────────────────────────────────────────────
+
+def _make_cve(cve_id: str, score: float = 7.5, version_matched: bool = True) -> CVERecord:
+    return CVERecord(
+        cve_id=cve_id,
+        source="NVD",
+        cvss_v3=CVSSv3(score=score, severity=Severity.HIGH),
+        version_matched=version_matched,
+    )
+
+
+def test_stage1_nginx_mocked():
+    """Verify run_stage1 orchestration with mocked fetchers — no network required."""
+    nvd_cves = [_make_cve("CVE-2021-23017", score=7.7), _make_cve("CVE-2019-9511", score=7.5)]
+    osv_cves = [_make_cve("CVE-2021-23017", score=7.7)]  # duplicate — should be deduped
+    ghsa_cves: list[CVERecord] = []
+
+    with (
+        patch("core.cve_mapper.fetch_nvd", return_value=(nvd_cves, [])),
+        patch("core.cve_mapper.fetch_osv", return_value=(osv_cves, [])),
+        patch("core.cve_mapper.fetch_ghsa", return_value=(ghsa_cves, [])),
+        patch("core.cve_mapper.fetch_attackerkb", return_value=([], [])),
+    ):
+        result = run_stage1("nginx", "1.20.0")
+
+    assert result.total_cves == 2, f"Expected 2 unique CVEs after dedup, got {result.total_cves}"
+    cve_ids = [c.cve_id for c in result.cves]
+    assert "CVE-2021-23017" in cve_ids
+    assert "CVE-2019-9511" in cve_ids
+    assert result.version_matched_count == 2
+    assert "NVD" in result.sources_queried
 
 
 # ─────────────────────────────────────────────────────────────────
