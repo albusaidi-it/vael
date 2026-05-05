@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+dist/
+build/
+.eggs/
+
+# Dev environment
+.venv
+venv
+env
+.env
+*.env
+
+# Local data / cache
+feeds/
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Test artifacts
+.pytest_cache
+.coverage
+htmlcov/
+tests/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Docs / extras
+wiki/
+*.md
+!README.md
+
+# CI
+.github/

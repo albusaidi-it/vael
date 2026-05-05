@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VAEL — Vulnerability Analysis Engine</title>
+  <style>
+    :root {
+      --bg:        #06060a;
+      --surface:   #0e0f14;
+      --surface2:  #14161e;
+      --surface3:  #1c1e28;
+      --border:    rgba(255,255,255,0.07);
+      --border2:   rgba(255,255,255,0.13);
+      --text:      #f5f5f7;
+      --muted:     #86868b;
+      --accent:    #0071e3;
+      --accent-hi: #409cff;
+      --red:       #ff453a;
+      --orange:    #ff9f0a;
+      --yellow:    #ffd60a;
+      --green:     #30d158;
+      --purple:    #bf5af2;
+      --critical:  #ff453a;
+      --radius:    14px;
+      --radius-sm: 8px;
+      --font:      -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      --mono:      'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; opacity: 0.82; }
+
+    /* ── Header ──────────────────────────────────────── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(6,6,10,0.84);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-left { display: flex; align-items: center; gap: 18px; }
+    .logo { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.3px; }
+    .logo span { color: var(--accent); }
+    .tagline { color: var(--muted); font-size: 0.76rem; }
+
+    .lang-switch {
+      display: flex; gap: 2px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 3px;
+    }
+    .lang-btn {
+      padding: 4px 11px;
+      border-radius: 5px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      transition: all 0.15s;
+      font-family: var(--font);
+    }
+    .lang-btn.active { background: var(--surface3); color: var(--text); }
+    .lang-btn:hover:not(.active) { color: var(--text); }
+
+    /* ── Layout ──────────────────────────────────────── */
+    main { max-width: 1120px; margin: 0 auto; padding: 40px 24px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 0.93rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      letter-spacing: -0.1px;
+    }
+
+    /* ── Form ────────────────────────────────────────── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.79rem; color: var(--muted); font-weight: 500; letter-spacing: 0.1px; }
+    .form-group input, .form-group select {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 11px 14px;
+      font-size: 0.88rem;
+      font-family: var(--font);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.14);
+    }
+    .form-group input::placeholder { color: var(--muted); opacity: 0.55; }
+
+    .form-options { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 14px; }
+    .form-options label {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 0.82rem; color: var(--muted); cursor: pointer;
+    }
+    .form-options input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+
+    /* ── Buttons ─────────────────────────────────────── */
+    .btn {
+      padding: 10px 22px;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.87rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: var(--font);
+    }
+    .btn:hover:not(:disabled) { opacity: 0.86; transform: translateY(-1px); }
+    .btn:active:not(:disabled) { transform: translateY(0); opacity: 1; }
+    .btn:disabled { opacity: 0.38; cursor: not-allowed; }
+    .btn-primary  { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+    .btn-row { display: flex; gap: 10px; margin-top: 22px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Chips ───────────────────────────────────────── */
+    .quick-fill { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+    .chip {
+      padding: 5px 13px;
+      border-radius: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      font-size: 0.77rem;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,113,227,0.07); }
+
+    /* ── Spinner ─────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px; flex-shrink: 0;
+    }
+    [dir="rtl"] .spinner { margin-right: 0; margin-left: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Status bar ──────────────────────────────────── */
+    .status-bar {
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 16px;
+    }
+    .status-bar.info  { background: rgba(0,113,227,0.08);  border: 1px solid rgba(0,113,227,0.22); }
+    .status-bar.error { background: rgba(255,69,58,0.08);  border: 1px solid rgba(255,69,58,0.28);  color: var(--red); }
+    .status-bar.ok    { background: rgba(48,209,88,0.08);  border: 1px solid rgba(48,209,88,0.28);  color: var(--green); }
+
+    /* ── Verdict banner ──────────────────────────────── */
+    .verdict-banner {
+      padding: 22px 28px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      border-left: 3px solid;
+    }
+    [dir="rtl"] .verdict-banner { border-left: none; border-right: 3px solid; }
+    .verdict-banner.patch-now { border-color: var(--red);    background: rgba(255,69,58,0.07);  }
+    .verdict-banner.high      { border-color: var(--orange); background: rgba(255,159,10,0.07); }
+    .verdict-banner.monitor   { border-color: var(--yellow); background: rgba(255,214,10,0.07); }
+    .verdict-banner.defer     { border-color: var(--green);  background: rgba(48,209,88,0.07);  }
+    .verdict-label { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 4px; }
+    .verdict-banner.patch-now .verdict-label { color: var(--red); }
+    .verdict-banner.high      .verdict-label { color: var(--orange); }
+    .verdict-banner.monitor   .verdict-label { color: var(--yellow); }
+    .verdict-banner.defer     .verdict-label { color: var(--green); }
+    .verdict-rec { color: var(--text); font-size: 0.9rem; margin-bottom: 8px; }
+    .confidence-bar-wrap { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+    .confidence-bar-bg { flex: 1; max-width: 160px; height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+    .confidence-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.8s ease; }
+    .confidence-label { font-size: 0.77rem; color: var(--muted); }
+
+    /* ── Tabs ────────────────────────────────────────── */
+    .tab-bar {
+      display: flex; gap: 0;
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab {
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 0.83rem;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Stats row ───────────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 10px;
+      text-align: center;
+    }
+    .stat-value { font-size: 1.65rem; font-weight: 700; line-height: 1; letter-spacing: -0.5px; }
+    .stat-label { font-size: 0.67rem; color: var(--muted); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+    .stat-box.critical .stat-value { color: var(--critical); }
+    .stat-box.kev      .stat-value { color: var(--red); }
+    .stat-box.warn     .stat-value { color: var(--orange); }
+    .stat-box.accent   .stat-value { color: var(--accent); }
+
+    /* ── Table ───────────────────────────────────────── */
+    .vael-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    .vael-table th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--muted);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    [dir="rtl"] .vael-table th { text-align: right; }
+    .vael-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .vael-table tr:last-child td { border-bottom: none; }
+    .vael-table tr:hover td { background: rgba(255,255,255,0.014); }
+
+    /* ── Badges ──────────────────────────────────────── */
+    .badge-sev, .badge-tier, .badge-quality {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 0.71rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .sev-CRITICAL { background: rgba(255,69,58,0.18);  color: #ff453a; }
+    .sev-HIGH     { background: rgba(255,159,10,0.18); color: #ff9f0a; }
+    .sev-MEDIUM   { background: rgba(255,214,10,0.15); color: #ffd60a; }
+    .sev-LOW      { background: rgba(48,209,88,0.15);  color: #30d158; }
+    .sev-NONE     { background: rgba(134,134,139,0.1); color: #6e6e73; }
+    .sev-UNKNOWN  { background: rgba(134,134,139,0.15); color: #86868b; }
+
+    .tier-T0_PATCH_NOW { background: rgba(255,69,58,0.18);  color: #ff453a; }
+    .tier-T1_HIGH      { background: rgba(255,159,10,0.18); color: #ff9f0a; }
+    .tier-T2_MONITOR   { background: rgba(255,214,10,0.15); color: #ffd60a; }
+    .tier-T3_DEFER     { background: rgba(48,209,88,0.15);  color: #30d158; }
+    .tier-T_UNKNOWN    { background: rgba(134,134,139,0.15); color: #86868b; }
+
+    .quality-WEAPONIZED { background: rgba(255,69,58,0.18);  color: #ff453a; }
+    .quality-FUNCTIONAL { background: rgba(255,159,10,0.18); color: #ff9f0a; }
+    .quality-CONCEPTUAL { background: rgba(0,113,227,0.18);  color: #409cff; }
+    .quality-UNKNOWN    { background: rgba(134,134,139,0.15); color: #86868b; }
+    .quality-FAKE       { background: rgba(134,134,139,0.1);  color: #6e6e73; }
+
+    .exp-CRITICAL { background: rgba(255,69,58,0.18);  color: #ff453a; }
+    .exp-HIGH     { background: rgba(255,159,10,0.18); color: #ff9f0a; }
+    .exp-MODERATE { background: rgba(255,214,10,0.15); color: #ffd60a; }
+    .exp-LOW      { background: rgba(48,209,88,0.15);  color: #30d158; }
+    .exp-NONE     { background: rgba(48,209,88,0.1);   color: #30d158; }
+    .exp-UNKNOWN  { background: rgba(134,134,139,0.15); color: #86868b; }
+
+    .ti-badge {
+      display: inline-block;
+      background: rgba(255,69,58,0.15);
+      color: #ff453a;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: help;
+    }
+
+    .kev-yes { color: var(--red); font-weight: 600; }
+    .kev-no  { color: var(--muted); }
+    .cve-link { font-family: var(--mono); font-size: 0.79rem; color: var(--accent); font-weight: 500; }
+
+    /* ── EPSS bar ────────────────────────────────────── */
+    .epss-bar-wrap { display: flex; align-items: center; gap: 6px; }
+    .epss-bar-bg   { width: 54px; height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+    .epss-bar-fill { height: 100%; border-radius: 2px; }
+
+    /* ── PoC cards ───────────────────────────────────── */
+    .poc-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      margin-bottom: 8px;
+      transition: border-color 0.15s;
+    }
+    .poc-card:hover { border-color: var(--border2); }
+    .poc-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+    .poc-card-title  { font-weight: 600; font-size: 0.88rem; }
+    .poc-card-meta   { font-size: 0.78rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+    .poc-card-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* ── Evidence list ───────────────────────────────── */
+    .evidence-list { list-style: none; }
+    .evidence-list li {
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .evidence-list li:last-child { border-bottom: none; }
+    .evidence-list li::before { content: "→"; color: var(--accent); flex-shrink: 0; }
+    [dir="rtl"] .evidence-list li::before { content: "←"; }
+
+    /* ── Exposure source grid ────────────────────────── */
+    .src-count-grid {
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .src-count-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      text-align: center;
+    }
+    .src-name { font-size: 0.74rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .src-val  { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+
+    /* ── Section label ───────────────────────────────── */
+    .section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── RTL overrides ───────────────────────────────── */
+    [dir="rtl"] .form-group input,
+    [dir="rtl"] .form-group select   { text-align: right; }
+    [dir="rtl"] .btn-row             { flex-direction: row-reverse; }
+    [dir="rtl"] .quick-fill          { flex-direction: row-reverse; }
+    [dir="rtl"] .poc-card-header     { flex-direction: row-reverse; }
+    [dir="rtl"] .poc-card-meta       { flex-direction: row-reverse; }
+    [dir="rtl"] .header-left         { flex-direction: row-reverse; }
+    [dir="rtl"] .tab-bar             { flex-direction: row-reverse; }
+    [dir="rtl"] .confidence-bar-wrap { flex-direction: row-reverse; }
+
+    /* ── Utility ─────────────────────────────────────── */
+    .hidden { display: none !important; }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (max-width: 700px) {
+      header { padding: 0 16px; }
+      .tagline { display: none; }
+      main { padding: 24px 14px; }
+      .card { padding: 20px 16px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(3,1fr); }
+      .src-count-grid { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 440px) {
+      .stats-row { grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo">V<span>AEL</span></div>
+    <div class="tagline" data-i18n="tagline">Vulnerability Analysis Engine</div>
+  </div>
+  <div class="lang-switch">
+    <button class="lang-btn active" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" onclick="setLang('ar')">AR</button>
+  </div>
+</header>
+
+<main>
+  <!-- Input Card -->
+  <div class="card">
+    <div class="card-title" data-i18n="analyzeTitle">Analyze Software</div>
+
+    <div class="quick-fill">
+      <span style="font-size:0.78rem;color:var(--muted);align-self:center" data-i18n="demoLabel">Demo scenarios:</span>
+      <span class="chip" onclick="loadDemo('log4shell')">⚡ Log4Shell — log4j 2.14.1</span>
+      <span class="chip" onclick="loadDemo('spring4shell')">⚡ Spring4Shell — spring-framework 5.3.17</span>
+    </div>
+
+    <form id="analyzeForm" onsubmit="runAnalysis(event)">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="software" data-i18n="swLabel">Software / Package Name</label>
+          <input id="software" type="text" data-i18n-placeholder="swPlaceholder" placeholder="e.g. log4j, nginx, openssl" required />
+        </div>
+        <div class="form-group">
+          <label for="version" data-i18n="verLabel">Version</label>
+          <input id="version" type="text" data-i18n-placeholder="verPlaceholder" placeholder="e.g. 2.14.1" required />
+        </div>
+        <div class="form-group">
+          <label for="cpe" data-i18n="cpeLabel">CPE String (optional)</label>
+          <input id="cpe" type="text" placeholder="cpe:2.3:a:vendor:product:version:*:*:*:*:*:*:*" />
+        </div>
+        <div class="form-group">
+          <label for="ecosystem" data-i18n="ecosystemLabel">Ecosystem (optional)</label>
+          <input id="ecosystem" type="text" data-i18n-placeholder="ecosystemPlaceholder" placeholder="e.g. Maven, PyPI, npm" />
+        </div>
+      </div>
+      <div class="form-options">
+        <label><input type="checkbox" id="offline" /> <span data-i18n="optOffline">Offline mode (no network)</span></label>
+        <label><input type="checkbox" id="deterministic" checked /> <span data-i18n="optDeterministic">Deterministic verdict (no AI)</span></label>
+        <label><input type="checkbox" id="skipGithub" /> <span data-i18n="optSkipGithub">Skip GitHub PoC search</span></label>
+      </div>
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary" id="submitBtn" data-i18n="btnAnalyze">Analyze</button>
+        <button type="button" class="btn btn-secondary" onclick="clearResults()" data-i18n="btnClear">Clear</button>
+        <span id="loadingText" class="hidden" style="color:var(--muted);font-size:0.85rem;display:flex;align-items:center;">
+          <span class="spinner"></span><span id="loadingStage"></span>
+        </span>
+      </div>
+    </form>
+  </div>
+
+  <!-- Status / Error -->
+  <div id="statusBar" class="hidden"></div>
+
+  <!-- Rate limit warnings -->
+  <div id="rateLimitBanner" class="hidden" style="
+    background: rgba(255,159,10,0.07);
+    border: 1px solid rgba(255,159,10,0.28);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    font-size: 0.83rem;
+  ">
+    <span style="color:var(--orange);font-weight:600;" data-i18n="rateLimitTitle">⚠ Rate limit warnings</span>
+    <ul id="rateLimitList" style="margin:6px 0 0 18px;color:var(--muted);line-height:1.7;"></ul>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="hidden">
+
+    <!-- Verdict Banner -->
+    <div id="verdictBanner" class="verdict-banner">
+      <div class="verdict-label" id="verdictLabel"></div>
+      <div class="verdict-rec" id="verdictRec"></div>
+      <div class="confidence-bar-wrap">
+        <div class="confidence-bar-bg">
+          <div class="confidence-bar-fill" id="confidenceFill" style="width:0%"></div>
+        </div>
+        <span class="confidence-label" id="confidenceLabel"></span>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-row" id="statsRow"></div>
+
+    <!-- Tabs -->
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('stage1')" data-i18n="tabCVE">CVE Inventory</div>
+        <div class="tab" onclick="switchTab('stage2')" data-i18n="tabExploit">Exploitability</div>
+        <div class="tab" onclick="switchTab('stage3')" data-i18n="tabPoC">Public PoCs</div>
+        <div class="tab" onclick="switchTab('exposure')" data-i18n="tabExposure">Global Exposure</div>
+        <div class="tab" onclick="switchTab('verdict')" data-i18n="tabVerdict">AI Verdict</div>
+      </div>
+      <div style="padding:20px 24px;">
+        <div id="tab-stage1"   class="tab-panel active"></div>
+        <div id="tab-stage2"   class="tab-panel"></div>
+        <div id="tab-stage3"   class="tab-panel"></div>
+        <div id="tab-exposure" class="tab-panel">
+          <p style="color:var(--muted);font-size:0.86rem;margin-bottom:16px;line-height:1.6;" data-i18n="exposureDesc">
+            Query Shodan, Censys, FOFA, and ZoomEye to count globally internet-exposed hosts running the analyzed software. Results are cached for 6 hours.
+          </p>
+          <button class="btn btn-primary" id="exposureRunBtn" onclick="checkExposure()">
+            <span data-i18n="btnCheckExposure">Check Global Exposure</span>
+          </button>
+          <div id="exposureOutput" style="margin-top:20px;"></div>
+        </div>
+        <div id="tab-verdict"  class="tab-panel"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── Oman Internet Exposure ─────────────────────────────────────── -->
+<section style="max-width:1120px;margin:32px auto;padding:0 16px">
+  <div class="card" id="omanSection">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+      <div class="card-title" style="margin-bottom:0" data-i18n="omanTitle">🇴🇲 Oman Internet Exposure</div>
+      <span style="font-size:0.76rem;color:var(--muted);font-style:italic" data-i18n="omanPowered">Powered by Shodan · FOFA · Censys · ZoomEye</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.86rem;margin-bottom:20px;line-height:1.6;" data-i18n="omanDesc">
+      Search for publicly reachable hosts <strong>inside Oman</strong> running a given software or exposed to a specific vulnerability. Independent from the main analysis — enter any software and version, or click <em>Copy from analysis</em> after running the pipeline.
+    </p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;">
+      <div class="form-group" style="flex:1;min-width:150px;">
+        <label for="omanSoftware" data-i18n="omanSwLabel">Software</label>
+        <input id="omanSoftware" type="text" data-i18n-placeholder="omanSwPlaceholder" placeholder="e.g. apache, nginx, log4j" />
+      </div>
+      <div class="form-group" style="flex:1;min-width:110px;">
+        <label for="omanVersion" data-i18n="omanVerLabel">Version</label>
+        <input id="omanVersion" type="text" data-i18n-placeholder="verPlaceholder" placeholder="e.g. 2.4.50" />
+      </div>
+      <div style="display:flex;gap:8px;padding-bottom:2px;">
+        <button class="btn btn-primary" id="omanRunBtn" onclick="runOmanIntel()">
+          <span data-i18n="btnSearchOman">Search Oman 🇴🇲</span>
+        </button>
+        <button class="btn btn-secondary" onclick="omanCopyFromMain()">
+          <span data-i18n="btnCopyFromAnalysis">Copy from analysis</span>
+        </button>
+      </div>
+    </div>
+    <div id="omanOutput"></div>
+  </div>
+</section>
+
+<!-- ── Project Roadmap ────────────────────────────────────────────── -->
+<section style="max-width:1120px;margin:32px auto 72px;padding:0 16px;">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:8px;">
+      <div class="card-title" style="margin-bottom:0;" data-i18n="roadmapTitle">📋 Project Roadmap</div>
+      <span style="font-size:0.76rem;color:var(--muted);">VAEL v0.5.0</span>
+    </div>
+
+    <!-- Completed -->
+    <div style="margin-bottom:28px;">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--green);margin-bottom:14px;" data-i18n="roadmapCompleted">✓ Completed</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">
+
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Stage 1</span> <span style="font-size:0.8rem;color:var(--muted)">— CVE discovery · NVD, OSV, GHSA, AttackerKB, VulnCheck</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Stage 2</span> <span style="font-size:0.8rem;color:var(--muted)">— Exploitability · EPSS, CISA KEV, VulnCheck threat intel, VEP scoring</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Stage 3</span> <span style="font-size:0.8rem;color:var(--muted)">— PoC harvesting · GitHub, Exploit-DB, Nuclei, Metasploit, Packet Storm, Pastebin + intl.</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Stage 4</span> <span style="font-size:0.8rem;color:var(--muted)">— Global exposure · Shodan, Censys, FOFA, ZoomEye (4-source, deduped)</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">AI Verdict</span> <span style="font-size:0.8rem;color:var(--muted)">— Gemini AI + deterministic fallback</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Web UI</span> <span style="font-size:0.8rem;color:var(--muted)">— Real-time streaming dashboard, 5-tab results, EN/AR bilingual</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Oman Intel</span> <span style="font-size:0.8rem;color:var(--muted)">— Regional exposure via Shodan, FOFA, Censys, ZoomEye</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Production stack</span> <span style="font-size:0.8rem;color:var(--muted)">— Docker, gunicorn, nginx, security headers</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Rate limiter</span> <span style="font-size:0.8rem;color:var(--muted)">— Per-API budget tracking with UI warnings</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Demo mode</span> <span style="font-size:0.8rem;color:var(--muted)">— Log4Shell &amp; Spring4Shell fixtures, no network</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">SBOM analysis</span> <span style="font-size:0.8rem;color:var(--muted)">— CycloneDX, SPDX, requirements.txt via API</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:700;font-size:0.8rem;margin-top:1px">✓</span>
+          <div><span style="font-size:0.84rem;font-weight:600">CLI</span> <span style="font-size:0.8rem;color:var(--muted)">— Full-featured command-line interface with rich output</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Coming next -->
+    <div style="margin-bottom:28px;">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;" data-i18n="roadmapNext">→ Coming Next</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-top:1px">→</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Delta Tracker UI</span> <span style="font-size:0.8rem;color:var(--muted)">— See what changed since your last scan</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-top:1px">→</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Report Export</span> <span style="font-size:0.8rem;color:var(--muted)">— Download full analysis as PDF or Markdown</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-top:1px">→</span>
+          <div><span style="font-size:0.84rem;font-weight:600">SBOM Upload UI</span> <span style="font-size:0.8rem;color:var(--muted)">— Drag-and-drop SBOM file upload in dashboard</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-top:1px">→</span>
+          <div><span style="font-size:0.84rem;font-weight:600">Wiki pages</span> <span style="font-size:0.8rem;color:var(--muted)">— Deep-dive docs for Oman Intel, ZoomEye, delta</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Version history -->
+    <div>
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;" data-i18n="roadmapHistory">Version History</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;gap:14px;align-items:center;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
+          <span style="font-family:var(--mono);font-size:0.84rem;font-weight:700;color:var(--accent);min-width:52px;">v0.5.0</span>
+          <span style="font-size:0.7rem;padding:1px 8px;border-radius:20px;background:rgba(0,113,227,0.12);color:var(--accent);border:1px solid rgba(0,113,227,0.3);white-space:nowrap;">Current</span>
+          <span style="font-size:0.8rem;color:var(--muted);">Stage 4 global exposure UI, 5-tab dashboard, PoC quality improvements (7 sources), VEP attack vector bonus, parallel VulnCheck, EN/AR bilingual UI</span>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);">
+          <span style="font-family:var(--mono);font-size:0.84rem;font-weight:700;color:var(--muted);min-width:52px;">v0.4.0</span>
+          <span style="font-size:0.7rem;padding:1px 8px;border-radius:20px;background:var(--bg);color:var(--muted);border:1px solid var(--border);white-space:nowrap;">Previous</span>
+          <span style="font-size:0.8rem;color:var(--muted);">Oman Intel with 4 sources, ZoomEye integration, production Docker stack, rate limiter, CVE-first search</span>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);">
+          <span style="font-family:var(--mono);font-size:0.84rem;font-weight:700;color:var(--muted);min-width:52px;">v0.3.0</span>
+          <span style="font-size:0.7rem;padding:1px 8px;border-radius:20px;background:var(--bg);color:var(--muted);border:1px solid var(--border);white-space:nowrap;"></span>
+          <span style="font-size:0.8rem;color:var(--muted);">Stages 1–3, AI verdict, real-time streaming web UI, CLI, demo fixture endpoints</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+  const API = window.VAEL_API_BASE || '';
+
+  // ── i18n ──────────────────────────────────────────────────────────────
+  const STRINGS = {
+    en: {
+      tagline: 'Vulnerability Analysis Engine',
+      analyzeTitle: 'Analyze Software',
+      demoLabel: 'Demo scenarios:',
+      swLabel: 'Software / Package Name',
+      swPlaceholder: 'e.g. log4j, nginx, openssl',
+      verLabel: 'Version',
+      verPlaceholder: 'e.g. 2.14.1',
+      cpeLabel: 'CPE String (optional)',
+      ecosystemLabel: 'Ecosystem (optional)',
+      ecosystemPlaceholder: 'e.g. Maven, PyPI, npm',
+      optOffline: 'Offline mode (no network)',
+      optDeterministic: 'Deterministic verdict (no AI)',
+      optSkipGithub: 'Skip GitHub PoC search',
+      btnAnalyze: 'Analyze',
+      btnClear: 'Clear',
+      tabCVE: 'CVE Inventory',
+      tabExploit: 'Exploitability',
+      tabPoC: 'Public PoCs',
+      tabExposure: 'Global Exposure',
+      tabVerdict: 'AI Verdict',
+      exposureDesc: 'Query Shodan, Censys, FOFA, and ZoomEye to count globally internet-exposed hosts running the analyzed software. Results are cached for 6 hours.',
+      btnCheckExposure: 'Check Global Exposure',
+      omanTitle: '🇴🇲 Oman Internet Exposure',
+      omanPowered: 'Powered by Shodan · FOFA · Censys · ZoomEye',
+      omanDesc: 'Search for publicly reachable hosts inside Oman running a given software or exposed to a specific vulnerability. Independent from the main analysis.',
+      omanSwLabel: 'Software',
+      omanSwPlaceholder: 'e.g. apache, nginx, log4j',
+      omanVerLabel: 'Version',
+      btnSearchOman: 'Search Oman 🇴🇲',
+      btnCopyFromAnalysis: 'Copy from analysis',
+      roadmapTitle: '📋 Project Roadmap',
+      roadmapCompleted: '✓ Completed',
+      roadmapNext: '→ Coming Next',
+      roadmapHistory: 'Version History',
+      rateLimitTitle: '⚠ Rate limit warnings',
+      loadingStage1: 'Stage 1: mapping CVEs from NVD + OSV…',
+      loadingStage2: 'Stage 2: fetching EPSS scores + CISA KEV…',
+      loadingStage3: 'Stage 3: harvesting PoCs from GitHub, Exploit-DB, Nuclei, Metasploit, Packet Storm, Pastebin + intl…',
+      loadingVerdict: 'Generating AI verdict…',
+      statTotalCVEs: 'Total CVEs',
+      statCritical: 'Critical',
+      statHigh: 'High',
+      statVerMatch: 'Ver. Match',
+      statInKEV: 'In KEV',
+      statPatchNow: 'Patch Now',
+      statT1High: 'T1 High',
+      statMonitor: 'Monitor',
+      statPoCs: 'Public PoCs',
+    },
+    ar: {
+      tagline: 'محرك تحليل الثغرات الأمنية',
+      analyzeTitle: 'تحليل البرمجيات',
+      demoLabel: 'سيناريوهات تجريبية:',
+      swLabel: 'اسم البرنامج / الحزمة',
+      swPlaceholder: 'مثال: log4j, nginx, openssl',
+      verLabel: 'الإصدار',
+      verPlaceholder: 'مثال: 2.14.1',
+      cpeLabel: 'CPE (اختياري)',
+      ecosystemLabel: 'النظام البيئي (اختياري)',
+      ecosystemPlaceholder: 'مثال: Maven, PyPI, npm',
+      optOffline: 'وضع عدم الاتصال',
+      optDeterministic: 'حكم حتمي (بدون ذكاء اصطناعي)',
+      optSkipGithub: 'تخطي بحث GitHub',
+      btnAnalyze: 'تحليل',
+      btnClear: 'مسح',
+      tabCVE: 'قائمة CVE',
+      tabExploit: 'قابلية الاستغلال',
+      tabPoC: 'إثباتات الاختراق',
+      tabExposure: 'التعرض العالمي',
+      tabVerdict: 'حكم الذكاء الاصطناعي',
+      exposureDesc: 'استعلم من Shodan وCensys وFOFA وZoomEye لحساب المضيفين المكشوفين على الإنترنت الذين يشغّلون البرنامج المحلل. تُخزَّن النتائج مؤقتاً لمدة 6 ساعات.',
+      btnCheckExposure: 'فحص التعرض العالمي',
+      omanTitle: '🇴🇲 التعرض الإنترنتي في عُمان',
+      omanPowered: 'مدعوم من Shodan · FOFA · Censys · ZoomEye',
+      omanDesc: 'ابحث عن المضيفين المكشوفين على الإنترنت داخل عُمان الذين يشغّلون برنامجاً معيناً أو مكشوفون لثغرة محددة.',
+      omanSwLabel: 'البرنامج',
+      omanSwPlaceholder: 'مثال: apache, nginx, log4j',
+      omanVerLabel: 'الإصدار',
+      btnSearchOman: 'بحث في عُمان 🇴🇲',
+      btnCopyFromAnalysis: 'نسخ من التحليل',
+      roadmapTitle: '📋 خارطة الطريق',
+      roadmapCompleted: '✓ مكتمل',
+      roadmapNext: '→ قادم قريباً',
+      roadmapHistory: 'سجل الإصدارات',
+      rateLimitTitle: '⚠ تحذيرات حد المعدل',
+      loadingStage1: 'المرحلة 1: رسم خريطة CVE من NVD + OSV…',
+      loadingStage2: 'المرحلة 2: جلب نتائج EPSS + CISA KEV…',
+      loadingStage3: 'المرحلة 3: جمع إثباتات الاختراق من GitHub, Exploit-DB, Nuclei, Metasploit, Pastebin…',
+      loadingVerdict: 'إنشاء حكم الذكاء الاصطناعي…',
+      statTotalCVEs: 'إجمالي CVE',
+      statCritical: 'حرج',
+      statHigh: 'عالي',
+      statVerMatch: 'تطابق الإصدار',
+      statInKEV: 'في KEV',
+      statPatchNow: 'تصحيح فوري',
+      statT1High: 'T1 عالي',
+      statMonitor: 'مراقبة',
+      statPoCs: 'إثباتات عامة',
+    },
+  };
+
+  let _lang = 'en';
+
+  function t(key) {
+    return (STRINGS[_lang] && STRINGS[_lang][key]) || STRINGS.en[key] || key;
+  }
+
+  function setLang(lang) {
+    _lang = lang;
+    const html = document.documentElement;
+    html.lang = lang;
+    html.dir  = lang === 'ar' ? 'rtl' : 'ltr';
+    document.querySelectorAll('.lang-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent.trim().toUpperCase() === lang.toUpperCase());
+    });
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      const val = t(key);
+      if (val) el.textContent = val;
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      const val = t(key);
+      if (val) el.placeholder = val;
+    });
+  }
+
+  // ── Label maps ────────────────────────────────────────────────────────
+  const TIER_LABELS = {
+    T0_PATCH_NOW: 'PATCH NOW',
+    T1_HIGH:      'HIGH',
+    T2_MONITOR:   'MONITOR',
+    T3_DEFER:     'DEFER',
+    T_UNKNOWN:    'UNKNOWN',
+  };
+
+  const COMPAT_LABELS = {
+    CONFIRMED:    '✓ Confirmed',
+    LIKELY:       '~ Likely',
+    UNKNOWN:      '? Unknown',
+    INCOMPATIBLE: '✗ Incompatible',
+  };
+
+  function maturityLabel(raw) {
+    return raw.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  // ── Tab management ────────────────────────────────────────────────────
+  function switchTab(name) {
+    const names = ['stage1','stage2','stage3','exposure','verdict'];
+    document.querySelectorAll('.tab').forEach((tab, i) => {
+      tab.classList.toggle('active', names[i] === name);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => {
+      p.classList.toggle('active', p.id === `tab-${name}`);
+    });
+  }
+
+  function setStatus(msg, type = 'info') {
+    const bar = document.getElementById('statusBar');
+    bar.className = `status-bar ${type}`;
+    bar.innerHTML = msg;
+    bar.classList.remove('hidden');
+  }
+
+  function clearResults() {
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('statusBar').classList.add('hidden');
+    document.getElementById('rateLimitBanner').classList.add('hidden');
+    document.getElementById('rateLimitList').innerHTML = '';
+    document.getElementById('exposureOutput').innerHTML = '';
+    _currentSoftware = null;
+    _currentVersion  = null;
+  }
+
+  function showRateLimitWarnings(warnings) {
+    if (!warnings || !warnings.length) return;
+    const banner = document.getElementById('rateLimitBanner');
+    const list   = document.getElementById('rateLimitList');
+    const existing = new Set(Array.from(list.querySelectorAll('li')).map(li => li.textContent));
+    warnings.forEach(w => {
+      if (!existing.has(w)) {
+        const li = document.createElement('li');
+        li.textContent = w;
+        list.appendChild(li);
+        existing.add(w);
+      }
+    });
+    banner.classList.remove('hidden');
+  }
+
+  // ── Demo loader ───────────────────────────────────────────────────────
+  async function loadDemo(scenarioId) {
+    clearResults();
+    setStatus(`<span class="spinner"></span> Loading demo scenario…`, 'info');
+    try {
+      const resp = await fetch(`${API}/demo/${scenarioId}`);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        setStatus(`<b>Demo error:</b> ${err.detail}`, 'error');
+        return;
+      }
+      const data = await resp.json();
+      document.getElementById('software').value = data.stage1.software;
+      document.getElementById('version').value  = data.stage1.version;
+      renderResults(data);
+      setStatus(
+        `⚡ <b>Demo data</b> — ${data.stage1.software} ${data.stage1.version} · `
+        + `${data.stage1.total_cves} CVEs · fixture data (instant, no network)`,
+        'ok'
+      );
+    } catch {
+      setStatus(`<b>Connection error:</b> API not reachable at <code>${API}</code>`, 'error');
+    }
+  }
+
+  // ── Live analysis (SSE streaming) ─────────────────────────────────────
+  let _activeSource = null;
+  let _currentSoftware = null, _currentVersion = null;
+
+  function runAnalysis(e) {
+    e.preventDefault();
+    if (_activeSource) { _activeSource.close(); _activeSource = null; }
+    clearResults();
+
+    const software      = document.getElementById('software').value.trim();
+    const version       = document.getElementById('version').value.trim();
+    const offline       = document.getElementById('offline').checked;
+    const deterministic = document.getElementById('deterministic').checked;
+    const skipGithub    = document.getElementById('skipGithub').checked;
+
+    const btn          = document.getElementById('submitBtn');
+    const loadingText  = document.getElementById('loadingText');
+    const loadingStage = document.getElementById('loadingStage');
+    btn.disabled = true;
+    loadingText.classList.remove('hidden');
+    loadingStage.textContent = t('loadingStage1');
+
+    let s1data = null, s2data = null, s3data = null;
+
+    const params = new URLSearchParams({
+      software, version,
+      offline:       offline       ? 'true' : 'false',
+      deterministic: deterministic ? 'true' : 'false',
+      skip_github:   skipGithub    ? 'true' : 'false',
+      top_n: '10',
+    });
+
+    const src = new EventSource(`${API}/analyze/stream?${params}`);
+    _activeSource = src;
+
+    function done() {
+      src.close();
+      _activeSource = null;
+      btn.disabled = false;
+      loadingText.classList.add('hidden');
+    }
+
+    src.addEventListener('stage1', ev => {
+      s1data = JSON.parse(ev.data);
+      showRateLimitWarnings(s1data.rate_limit_warnings);
+      document.getElementById('results').classList.remove('hidden');
+      renderStage1(s1data);
+      renderStats(s1data, { enrichments:[], kev_count:0, t0_patch_now_count:0, t1_high_count:0, t2_monitor_count:0, sources_queried:[] }, null);
+      switchTab('stage1');
+      loadingStage.textContent = t('loadingStage2');
+    });
+
+    src.addEventListener('stage2', ev => {
+      s2data = JSON.parse(ev.data);
+      showRateLimitWarnings(s2data.rate_limit_warnings);
+      renderStage2(s2data, s1data);
+      renderStats(s1data, s2data, null);
+      loadingStage.textContent = t('loadingStage3');
+    });
+
+    src.addEventListener('stage3', ev => {
+      s3data = JSON.parse(ev.data);
+      showRateLimitWarnings(s3data.rate_limit_warnings);
+      renderStage3(s3data);
+      renderStats(s1data, s2data, s3data);
+      loadingStage.textContent = t('loadingVerdict');
+    });
+
+    src.addEventListener('verdict', ev => {
+      const v = JSON.parse(ev.data);
+      renderVerdictBanner(v);
+      renderVerdictTab(v);
+    });
+
+    src.addEventListener('done', () => {
+      _currentSoftware = s1data?.software || null;
+      _currentVersion  = s1data?.version  || null;
+      done();
+      setStatus(
+        `🔍 <b>Live analysis</b> — ${s1data?.software} ${s1data?.version} · `
+        + `${s1data?.total_cves ?? 0} CVEs · `
+        + `${s2data?.kev_count ?? 0} in KEV · `
+        + `${s3data?.total_pocs ?? 0} PoCs`,
+        'ok'
+      );
+    });
+
+    src.addEventListener('error', ev => {
+      done();
+      let msg = 'Pipeline error';
+      try { msg = JSON.parse(ev.data).message; } catch (_) {}
+      setStatus(`<b>Error:</b> ${msg}`, 'error');
+    });
+
+    src.onerror = () => {
+      if (src.readyState === EventSource.CLOSED) return;
+      done();
+      setStatus(
+        `<b>Connection error:</b> Could not reach VAEL API at <code>${API}</code>. `
+        + `Start it with: <code>uvicorn api.main:app --reload</code>`,
+        'error'
+      );
+    };
+  }
+
+  // ── Render pipeline (demo full-data path) ─────────────────────────────
+  function renderResults(data) {
+    const { stage1, stage2, stage3, verdict } = data;
+    showRateLimitWarnings([
+      ...(stage1?.rate_limit_warnings  || []),
+      ...(stage2?.rate_limit_warnings  || []),
+      ...((stage3 && stage3.rate_limit_warnings) || []),
+    ]);
+    _currentSoftware = stage1?.software || null;
+    _currentVersion  = stage1?.version  || null;
+    document.getElementById('results').classList.remove('hidden');
+    renderVerdictBanner(verdict);
+    renderStats(stage1, stage2, stage3);
+    renderStage1(stage1);
+    renderStage2(stage2, stage1);
+    renderStage3(stage3);
+    renderVerdictTab(verdict);
+    switchTab('stage1');
+  }
+
+  function verdictCls(label) {
+    return ({ 'PATCH NOW': 'patch-now', HIGH: 'high', MONITOR: 'monitor', DEFER: 'defer' })[label] || 'monitor';
+  }
+
+  function renderVerdictBanner(v) {
+    document.getElementById('verdictBanner').className = `verdict-banner ${verdictCls(v.label)}`;
+    document.getElementById('verdictLabel').textContent = v.label;
+    document.getElementById('verdictRec').textContent   = v.recommendation;
+    const pct = Math.round(v.confidence * 100);
+    document.getElementById('confidenceFill').style.width = `${pct}%`;
+    document.getElementById('confidenceLabel').textContent =
+      `${pct}% confidence · ${v.used_ai ? 'Gemini AI' : 'Deterministic'}`;
+  }
+
+  function statBox(value, label, cls = '') {
+    return `<div class="stat-box ${cls}">
+      <div class="stat-value">${value}</div>
+      <div class="stat-label">${label}</div>
+    </div>`;
+  }
+
+  function renderStats(s1, s2, s3) {
+    document.getElementById('statsRow').innerHTML =
+      statBox(s1.total_cves,                 t('statTotalCVEs')) +
+      statBox(s1.critical_count,             t('statCritical'),  s1.critical_count   > 0 ? 'critical' : '') +
+      statBox(s1.high_count,                 t('statHigh'),      s1.high_count       > 0 ? 'warn' : '') +
+      statBox(s1.version_matched_count,      t('statVerMatch'),  s1.version_matched_count > 0 ? 'warn' : '') +
+      statBox(s2.kev_count,                  t('statInKEV'),     s2.kev_count        > 0 ? 'kev' : '') +
+      statBox(s2.t0_patch_now_count,         t('statPatchNow'),  s2.t0_patch_now_count > 0 ? 'critical' : '') +
+      statBox(s2.t1_high_count ?? '—',       t('statT1High'),   (s2.t1_high_count   > 0) ? 'warn' : '') +
+      statBox(s2.t2_monitor_count ?? '—',    t('statMonitor'),   '') +
+      statBox(s3 ? s3.total_pocs : '—',      t('statPoCs'),      (s3 && s3.total_pocs > 0) ? 'accent' : '');
+  }
+
+  function sevBadge(sev) {
+    return `<span class="badge-sev sev-${sev}">${sev}</span>`;
+  }
+
+  // ── Source label map ──────────────────────────────────────────────────
+  function sourceLabel(s) {
+    const map = {
+      GITHUB:            '🐙 GitHub',
+      EXPLOIT_DB:        '🗃 Exploit-DB',
+      PACKET_STORM:      '⚡ Packet Storm',
+      NUCLEI:            '🎯 Nuclei',
+      METASPLOIT:        '🔫 Metasploit',
+      GITEE:             '🇨🇳 Gitee',
+      SEEBUG:            '🇨🇳 Seebug',
+      PASTEBIN:          '📋 Pastebin',
+      OTHER:             '🔗 Other',
+      NVD:               '📌 NVD',
+      OSV:               '🛡 OSV',
+      GHSA:              '🔐 GHSA',
+      ATTACKER_KB:       '🔬 AttackerKB',
+      AttackerKB:        '🔬 AttackerKB',
+      ATTACKERKB:        '🔬 AttackerKB',
+      VulnCheck:         '🕵 VulnCheck',
+      VULNCHECK:         '🕵 VulnCheck',
+      EPSS:              '📊 EPSS',
+      'CISA-KEV':        '🚨 CISA KEV',
+      'Patch-heuristic': '🩹 Patch',
+      'CWE/CIS-local':   '📋 CWE/CIS',
+    };
+    return map[s] ?? s;
+  }
+
+  // ── Stage 1 ───────────────────────────────────────────────────────────
+  function renderStage1(s1) {
+    const el = document.getElementById('tab-stage1');
+    if (!s1.cves.length) {
+      el.innerHTML = '<p style="color:var(--muted)">No CVEs found for this software/version.</p>';
+      return;
+    }
+    const sorted = [...s1.cves].sort((a, b) => (b.cvss_v3?.score ?? 0) - (a.cvss_v3?.score ?? 0));
+    const rows = sorted.map(c => {
+      const sev   = c.cvss_v3?.severity ?? 'UNKNOWN';
+      const score = c.cvss_v3?.score != null ? c.cvss_v3.score.toFixed(1) : '—';
+      const vec   = c.cvss_v3?.vector
+        ? `<span title="${c.cvss_v3.vector}" style="cursor:help;border-bottom:1px dotted var(--muted)">${score}</span>`
+        : score;
+      const matched = c.version_matched
+        ? '<span style="color:var(--green);font-weight:600">✓</span>'
+        : '<span style="color:var(--muted)">—</span>';
+      const cwes  = c.cwes.map(w =>
+        `<code title="${w.name || ''}" style="font-size:0.76rem;cursor:help">${w.cwe_id}</code>`
+      ).join(' ') || '—';
+      const pubDate = c.published ? c.published.slice(0, 10) : '—';
+      const desc  = (c.description ?? '').slice(0, 100);
+      return `<tr>
+        <td><a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${c.cve_id}" target="_blank">${c.cve_id}</a></td>
+        <td>${sevBadge(sev)}</td>
+        <td><b>${vec}</b></td>
+        <td>${matched}</td>
+        <td style="color:var(--muted);font-size:0.8rem">${pubDate}</td>
+        <td>${cwes}</td>
+        <td style="font-size:0.79rem;color:var(--muted);max-width:280px" title="${(c.description ?? '').replace(/"/g,"'")}">
+          ${desc}${desc.length >= 100 ? '…' : ''}
+        </td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">
+        Sources: ${s1.sources_queried.map(sourceLabel).join(', ') || '—'}
+        ${s1.errors.length ? `· <span style="color:var(--red)">${s1.errors.length} error(s)</span>` : ''}
+      </p>
+      <div style="overflow-x:auto;">
+        <table class="vael-table">
+          <thead><tr>
+            <th>CVE ID</th><th>Severity</th><th>CVSS v3</th>
+            <th>Ver. Match</th><th>Published</th><th>CWEs</th><th>Description</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // ── Stage 2 ───────────────────────────────────────────────────────────
+  function epssCell(entry) {
+    if (!entry) return '<span style="color:var(--muted)">—</span>';
+    const score  = entry.epss;
+    const pct    = Math.round(score * 100);
+    const pctile = entry.percentile != null ? `top ${((1-entry.percentile)*100).toFixed(2)}% of CVEs` : '';
+    let color = '#30d158';
+    if (score > 0.7) color = '#ff453a';
+    else if (score > 0.3) color = '#ff9f0a';
+    else if (score > 0.05) color = '#ffd60a';
+    return `<div class="epss-bar-wrap" title="${(score*100).toFixed(2)}% exploitation probability · ${pctile}">
+      <div class="epss-bar-bg"><div class="epss-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span style="font-size:0.79rem">${(score*100).toFixed(1)}%</span>
+    </div>`;
+  }
+
+  function renderStage2(s2, s1) {
+    const el = document.getElementById('tab-stage2');
+    if (!s2.enrichments.length) {
+      el.innerHTML = '<p style="color:var(--muted)">No enrichment data — EPSS/KEV feeds may be unavailable.</p>';
+      return;
+    }
+    const sorted = [...s2.enrichments].sort((a, b) => b.vep_score - a.vep_score);
+
+    const rows = sorted.map(e => {
+      const tierLabel = TIER_LABELS[e.vep_tier] ?? e.vep_tier;
+      const tierBadge = `<span class="badge-tier tier-${e.vep_tier}">${tierLabel}</span>`;
+      const kevHtml = e.in_kev
+        ? `<span class="kev-yes" title="${e.kev_entry?.date_added ? 'Added '+e.kev_entry.date_added : ''}">✓ KEV</span>`
+        : '<span class="kev-no">—</span>';
+      const patch = e.patch.patch_available
+        ? `<span style="color:var(--green)">✓</span> ${e.patch.fixed_versions.slice(0,2).map(v => `<code style="font-size:0.76rem">${v}</code>`).join(' ')}`
+        : '<span style="color:var(--muted)">—</span>';
+      const reasoning = e.reasoning.length ? e.reasoning.map(r => `• ${r}`).join('\n') : '';
+      const ti = e.threat_intel;
+      const tiCell = (ti && (ti.in_the_wild || ti.threat_actors?.length || ti.ransomware_groups?.length))
+        ? `<span class="ti-badge" title="${[
+              ti.in_the_wild ? 'Exploited in the wild' : '',
+              ti.threat_actors?.length ? 'APT: '+ti.threat_actors.join(', ') : '',
+              ti.ransomware_groups?.length ? 'Ransomware: '+ti.ransomware_groups.join(', ') : '',
+            ].filter(Boolean).join(' · ')}">⚠ Threat Intel</span>`
+        : '<span style="color:var(--muted)">—</span>';
+      return `<tr title="${reasoning}">
+        <td><a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${e.cve_id}" target="_blank">${e.cve_id}</a></td>
+        <td>${tierBadge}</td>
+        <td style="font-size:0.79rem;color:var(--muted)">${e.vep_score.toFixed(1)}</td>
+        <td>${epssCell(e.epss)}</td>
+        <td>${kevHtml}</td>
+        <td style="font-size:0.79rem;color:var(--muted)">${maturityLabel(e.exploit_maturity)}</td>
+        <td>${patch}</td>
+        <td>${tiCell}</td>
+      </tr>`;
+    }).join('');
+
+    // Threat intel callout section
+    const tiCves = sorted.filter(e => {
+      const ti = e.threat_intel;
+      return ti && (ti.in_the_wild || ti.threat_actors?.length || ti.ransomware_groups?.length);
+    });
+    const tiSectionHtml = tiCves.length ? `
+      <div style="margin-top:24px;padding:16px 20px;background:rgba(255,69,58,0.05);border:1px solid rgba(255,69,58,0.18);border-radius:var(--radius-sm)">
+        <div style="font-size:0.83rem;font-weight:700;color:var(--red);margin-bottom:12px;">
+          ⚠ THREAT INTELLIGENCE — Active Exploitation Signals
+        </div>
+        ${tiCves.map(e => {
+          const ti = e.threat_intel;
+          const pills = [
+            ti.in_the_wild ? `<span style="background:rgba(255,69,58,0.18);color:#ff453a;padding:2px 8px;border-radius:4px;font-size:0.73rem">In the wild</span>` : '',
+            ...(ti.threat_actors||[]).map(a => `<span style="background:rgba(191,90,242,0.15);color:#bf5af2;padding:2px 8px;border-radius:4px;font-size:0.73rem">APT: ${a}</span>`),
+            ...(ti.ransomware_groups||[]).map(g => `<span style="background:rgba(255,159,10,0.18);color:#ff9f0a;padding:2px 8px;border-radius:4px;font-size:0.73rem">Ransomware: ${g}</span>`),
+          ].filter(Boolean).join(' ');
+          const notes = (ti.exploitation_notes||[]).map(n => `<li style="color:var(--muted);font-size:0.81rem;padding:3px 0">${n}</li>`).join('');
+          return `<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,69,58,0.12)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+              <a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${e.cve_id}" target="_blank">${e.cve_id}</a>
+              ${pills}
+            </div>
+            ${notes ? `<ul style="list-style:none;padding-left:12px">${notes}</ul>` : ''}
+          </div>`;
+        }).join('')}
+      </div>` : '';
+
+    const epssDateStr = s2.epss_score_date ? (() => {
+      const d = new Date(s2.epss_score_date);
+      const ageDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+      const stale = ageDays >= 2;
+      return `<span style="color:${stale ? 'var(--orange)' : 'var(--muted)'}" title="EPSS feed date">EPSS data: ${s2.epss_score_date}${stale ? ` (${ageDays}d old)` : ''}</span>`;
+    })() : '';
+
+    el.innerHTML = `
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:2px;">
+        Sources: ${s2.sources_queried.map(sourceLabel).join(', ') || '—'}
+      </p>
+      ${epssDateStr ? `<p style="font-size:0.77rem;margin-bottom:4px;">${epssDateStr}</p>` : ''}
+      <p style="font-size:0.77rem;color:var(--muted);margin-bottom:12px;">Hover a row to see VEP reasoning.</p>
+      <div style="overflow-x:auto;">
+        <table class="vael-table">
+          <thead><tr>
+            <th>CVE ID</th><th>VEP Tier</th><th>Score</th>
+            <th>EPSS</th><th>KEV</th><th>Maturity</th><th>Patch</th><th>Threat Intel</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${tiSectionHtml}`;
+  }
+
+  // ── Stage 3 ───────────────────────────────────────────────────────────
+  function qualityBadge(q) {
+    const labels = { WEAPONIZED:'💣 Weaponized', FUNCTIONAL:'⚡ Functional',
+                     CONCEPTUAL:'📄 Conceptual', FAKE:'🗑 Fake', UNKNOWN:'❓ Unknown' };
+    return `<span class="badge-quality quality-${q}">${labels[q] ?? q}</span>`;
+  }
+
+  const INTL_ENGINES = {
+    'Gitee':  { flag: '🇨🇳', label: 'Gitee (China)' },
+    'Seebug': { flag: '🇨🇳', label: 'Seebug (China)' },
+    'CNVD':   { flag: '🇨🇳', label: 'CNVD (China)' },
+    'Naver':  { flag: '🇰🇷', label: 'Naver (Korea)' },
+    'Yandex': { flag: '🇷🇺', label: 'Yandex (Russia)' },
+    'Baidu':  { flag: '🇨🇳', label: 'Baidu (China)' },
+  };
+
+  function renderStage3(s3) {
+    const el = document.getElementById('tab-stage3');
+    if (!s3) {
+      el.innerHTML = '<p style="color:var(--muted)">PoC data not available (Stage 3 skipped or no network).</p>';
+      return;
+    }
+    const allPocs = s3.bundles.flatMap(b => b.pocs);
+    if (!allPocs.length) {
+      el.innerHTML = '<p style="color:var(--muted)">No public PoCs found across all CVEs.</p>';
+      return;
+    }
+
+    const intlPocs = allPocs.filter(p => p.raw_meta && p.raw_meta.discovered_via);
+    const stdPocs  = allPocs.filter(p => !p.raw_meta || !p.raw_meta.discovered_via);
+
+    let intlHtml = '';
+    if (intlPocs.length) {
+      const byEngine = {};
+      for (const poc of intlPocs) {
+        const via = poc.raw_meta.discovered_via;
+        if (!byEngine[via]) byEngine[via] = [];
+        byEngine[via].push(poc);
+      }
+      const engineBlocks = Object.entries(byEngine).map(([engine, pocs]) => {
+        const meta = INTL_ENGINES[engine] || { flag: '🌐', label: engine };
+        const rows = pocs.map(poc => {
+          const shortUrl = poc.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 70);
+          return `<tr>
+            <td><a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${poc.cve_id}" target="_blank">${poc.cve_id}</a></td>
+            <td>${qualityBadge(poc.quality)}</td>
+            <td style="font-size:0.81rem"><a href="${poc.url}" target="_blank" rel="noopener" style="color:var(--accent)">${(poc.title || shortUrl).slice(0,80)}</a></td>
+            <td style="font-size:0.79rem;color:var(--muted)">${sourceLabel(poc.source)}</td>
+          </tr>`;
+        }).join('');
+        return `<div style="margin-bottom:20px;">
+          <div style="font-weight:600;font-size:0.88rem;margin-bottom:8px;">
+            ${meta.flag} ${meta.label}
+            <span style="font-weight:400;color:var(--muted);font-size:0.8rem;margin-left:8px">${pocs.length} result${pocs.length!==1?'s':''}</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="vael-table">
+              <thead><tr><th>CVE</th><th>Quality</th><th>URL / Title</th><th>Source</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+      }).join('');
+
+      intlHtml = `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 20px;margin-bottom:24px;">
+          <div style="font-size:0.86rem;font-weight:700;color:var(--accent-hi);margin-bottom:14px;">
+            🌐 INTERNATIONAL SEARCH ENGINE RESULTS
+            <span style="font-weight:400;color:var(--muted);font-size:0.79rem;margin-left:8px">${intlPocs.length} found across ${Object.keys(byEngine).length} engines</span>
+          </div>
+          ${engineBlocks}
+        </div>`;
+    }
+
+    const qualRank = { WEAPONIZED:4, FUNCTIONAL:3, CONCEPTUAL:2, UNKNOWN:1, FAKE:0 };
+    const sorted = [...stdPocs].sort((a, b) => (qualRank[b.quality]??0) - (qualRank[a.quality]??0));
+
+    const cards = sorted.map(poc => {
+      const stars  = poc.stars != null ? `⭐ ${poc.stars.toLocaleString()}` : '';
+      const forks  = poc.forks != null ? `🍴 ${poc.forks.toLocaleString()}` : '';
+      const lang   = poc.language ? `<code style="font-size:0.76rem">${poc.language}</code>` : '';
+      const compat = COMPAT_LABELS[poc.version_compatibility] ?? poc.version_compatibility;
+      const compatColor = poc.version_compatibility === 'CONFIRMED'    ? 'var(--green)'
+                        : poc.version_compatibility === 'LIKELY'       ? 'var(--yellow)'
+                        : poc.version_compatibility === 'INCOMPATIBLE' ? 'var(--red)' : 'var(--muted)';
+      const nucleiCat = poc.source === 'NUCLEI' && poc.raw_meta?.category
+        ? `<code style="font-size:0.73rem;background:rgba(0,113,227,0.12);color:var(--accent-hi);padding:1px 6px;border-radius:3px">${poc.raw_meta.category}</code>`
+        : '';
+      return `<div class="poc-card">
+        <div class="poc-card-header">
+          ${qualityBadge(poc.quality)}
+          <a class="poc-card-title" href="${poc.url}" target="_blank" rel="noopener">${poc.title || poc.url}</a>
+        </div>
+        <div class="poc-card-meta">
+          <span><a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${poc.cve_id}" target="_blank">${poc.cve_id}</a></span>
+          <span>${sourceLabel(poc.source)}${nucleiCat ? ' '+nucleiCat : ''}</span>
+          ${stars ? `<span>${stars}</span>` : ''}
+          ${forks ? `<span>${forks}</span>` : ''}
+          ${lang  ? `<span>${lang}</span>`  : ''}
+          <span style="color:${compatColor}">${compat}</span>
+          ${poc.published ? `<span style="color:var(--muted)">${poc.published}</span>` : ''}
+        </div>
+        ${poc.description ? `<div style="margin-top:8px;font-size:0.81rem;color:var(--muted)">${poc.description.slice(0,180)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:16px;">
+        ${s3.total_pocs} exploit${s3.total_pocs!==1?'s':''} found
+        · <span style="color:var(--red)">${s3.weaponized_count} weaponized</span>
+        · ${s3.cves_with_compatible_pocs} CVEs have version-compatible PoCs
+        · Sources: ${s3.sources_queried.map(sourceLabel).join(', ')}
+      </p>
+      ${intlHtml}
+      ${sorted.length ? `<div class="section-label" style="margin-bottom:12px;">Standard Sources</div>` : ''}
+      ${cards}`;
+  }
+
+  // ── Stage 4 — Global Exposure ─────────────────────────────────────────
+  function expLevelBadge(level) {
+    const labels = { CRITICAL:'🔴 Critical', HIGH:'🟠 High', MODERATE:'🟡 Moderate',
+                     LOW:'🟢 Low', NONE:'✅ None', UNKNOWN:'⬜ Unknown' };
+    return `<span class="badge-sev exp-${level}" style="font-size:0.8rem">${labels[level] ?? level}</span>`;
+  }
+
+  function renderStage4(s4) {
+    const el = document.getElementById('exposureOutput');
+    if (!s4) {
+      el.innerHTML = '<p style="color:var(--muted)">No exposure data — check API keys in .env</p>';
+      return;
+    }
+    if (!s4.exposures || !s4.exposures.length) {
+      el.innerHTML = '<p style="color:var(--muted)">No CVEs to check exposure for.</p>';
+      return;
+    }
+
+    const base = s4.exposures[0];
+    const srcCounts = [
+      { name: 'Shodan',  val: base.shodan_count  },
+      { name: 'Censys',  val: base.censys_count  },
+      { name: 'FOFA',    val: base.fofa_count    },
+      { name: 'ZoomEye', val: base.zoomeye_count },
+    ];
+    const srcBoxes = srcCounts.map(s => `
+      <div class="src-count-box">
+        <div class="src-name">${s.name}</div>
+        <div class="src-val" style="color:${s.val > 0 ? 'var(--red)' : s.val === null ? 'var(--muted)' : 'var(--green)'}">
+          ${s.val !== null && s.val !== undefined ? s.val.toLocaleString() : '—'}
+        </div>
+        <div style="font-size:0.71rem;color:var(--muted);margin-top:4px">exposed hosts</div>
+      </div>`).join('');
+
+    const cveRows = s4.exposures.map(exp => `
+      <tr>
+        <td><a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${exp.cve_id}" target="_blank">${exp.cve_id ?? '—'}</a></td>
+        <td style="text-align:center">${exp.shodan_count  !== null ? exp.shodan_count  : '—'}</td>
+        <td style="text-align:center">${exp.censys_count  !== null ? exp.censys_count  : '—'}</td>
+        <td style="text-align:center">${exp.fofa_count    !== null ? exp.fofa_count    : '—'}</td>
+        <td style="text-align:center">${exp.zoomeye_count !== null ? exp.zoomeye_count : '—'}</td>
+        <td style="text-align:center;font-weight:700">${exp.total_exposed.toLocaleString()}</td>
+        <td>${expLevelBadge(exp.level)}</td>
+      </tr>`).join('');
+
+    const samples   = base.samples || [];
+    const sampleRows = samples.slice(0, 15).map(h => `
+      <tr>
+        <td><code style="font-size:0.8rem">${h.ip}</code></td>
+        <td>${h.port ?? '—'}</td>
+        <td style="color:var(--muted)">${h.country ?? '—'}</td>
+        <td style="color:var(--muted);font-size:0.79rem">${(h.org ?? '').slice(0,40) || '—'}</td>
+      </tr>`).join('');
+
+    const topCC  = Object.entries(base.top_countries || {}).sort((a,b) => b[1]-a[1]).slice(0, 8);
+    const ccRows = topCC.map(([cc, n]) =>
+      `<tr><td>${cc}</td><td style="text-align:right;font-weight:600">${n}</td></tr>`
+    ).join('');
+
+    const errHtml = (s4.errors || []).length
+      ? `<div style="margin-top:16px;padding:10px 14px;background:rgba(255,69,58,0.06);border:1px solid rgba(255,69,58,0.22);border-radius:var(--radius-sm);font-size:0.81rem;color:var(--red)">⚠ ${s4.errors.join(' · ')}</div>` : '';
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;flex-wrap:wrap">
+        <div>
+          <div class="section-label" style="margin-bottom:4px">Total Exposed (max across sources)</div>
+          <div style="font-size:2.1rem;font-weight:700;letter-spacing:-0.5px;color:${s4.total_exposed > 0 ? 'var(--red)' : 'var(--green)'}">
+            ${s4.total_exposed.toLocaleString()}
+          </div>
+        </div>
+        <div>
+          <div class="section-label" style="margin-bottom:4px">Peak Risk Level</div>
+          ${expLevelBadge(s4.peak_level)}
+        </div>
+        <div style="margin-left:auto;font-size:0.77rem;color:var(--muted);text-align:right">
+          Sources: ${(s4.sources_queried||[]).join(', ') || 'none configured'}<br>
+          Queried: ${s4.query_ts ? new Date(s4.query_ts).toLocaleString() : '—'}
+        </div>
+      </div>
+
+      <div class="src-count-grid">${srcBoxes}</div>
+
+      <div style="margin-bottom:24px">
+        <div class="section-label" style="margin-bottom:10px">Exposure by CVE</div>
+        <div style="overflow-x:auto">
+          <table class="vael-table">
+            <thead><tr>
+              <th>CVE ID</th>
+              <th style="text-align:center">Shodan</th>
+              <th style="text-align:center">Censys</th>
+              <th style="text-align:center">FOFA</th>
+              <th style="text-align:center">ZoomEye</th>
+              <th style="text-align:center">Total</th>
+              <th>Level</th>
+            </tr></thead>
+            <tbody>${cveRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      ${sampleRows ? `
+      <div style="display:grid;grid-template-columns:${ccRows ? '2fr 1fr' : '1fr'};gap:24px;margin-bottom:8px">
+        <div>
+          <div class="section-label" style="margin-bottom:10px">Sample Exposed Hosts (${samples.length} found)</div>
+          <div style="overflow-x:auto">
+            <table class="vael-table">
+              <thead><tr><th>IP</th><th>Port</th><th>Country</th><th>Organization</th></tr></thead>
+              <tbody>${sampleRows}</tbody>
+            </table>
+          </div>
+        </div>
+        ${ccRows ? `
+        <div>
+          <div class="section-label" style="margin-bottom:10px">By Country</div>
+          <table class="vael-table">
+            <thead><tr><th>Country</th><th style="text-align:right">Hosts</th></tr></thead>
+            <tbody>${ccRows}</tbody>
+          </table>
+        </div>` : ''}
+      </div>` : ''}
+
+      ${errHtml}`;
+  }
+
+  async function checkExposure() {
+    const software = _currentSoftware || document.getElementById('software').value.trim();
+    const version  = _currentVersion  || document.getElementById('version').value.trim();
+    if (!software || !version) {
+      document.getElementById('exposureOutput').innerHTML =
+        '<div class="status-bar error">Run the main analysis first, or fill in Software + Version above.</div>';
+      return;
+    }
+    const btn = document.getElementById('exposureRunBtn');
+    const out = document.getElementById('exposureOutput');
+    btn.disabled = true;
+    btn.querySelector('[data-i18n]').textContent = 'Querying…';
+    out.innerHTML = `<div class="status-bar info"><span class="spinner"></span> Querying Shodan · Censys · FOFA · ZoomEye for global exposure…</div>`;
+    try {
+      const resp = await fetch(`${API}/analyze/exposure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ software, version, offline: false }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        out.innerHTML = `<div class="status-bar error"><b>Error:</b> ${err.detail}</div>`;
+        return;
+      }
+      const data = await resp.json();
+      renderStage4(data);
+    } catch (err) {
+      out.innerHTML = `<div class="status-bar error"><b>Connection error:</b> ${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.querySelector('[data-i18n]').textContent = t('btnCheckExposure');
+    }
+  }
+
+  // ── Oman Intel ────────────────────────────────────────────────────────
+  function omanCopyFromMain() {
+    const sw = document.getElementById('software').value.trim();
+    const v  = document.getElementById('version').value.trim();
+    if (sw) document.getElementById('omanSoftware').value = sw;
+    if (v)  document.getElementById('omanVersion').value  = v;
+    document.getElementById('omanSoftware').focus();
+  }
+
+  async function runOmanIntel() {
+    const software = document.getElementById('omanSoftware').value.trim();
+    const version  = document.getElementById('omanVersion').value.trim();
+    if (!software) { document.getElementById('omanSoftware').focus(); return; }
+    const btn = document.getElementById('omanRunBtn');
+    const out = document.getElementById('omanOutput');
+    btn.disabled = true;
+    btn.querySelector('[data-i18n]').textContent = 'Searching…';
+    out.innerHTML = `<div class="status-bar info"><span class="spinner"></span> Querying Shodan · FOFA · Censys for Oman exposure…</div>`;
+    const cveIds = Array.from(document.querySelectorAll('#tab-stage2 .cve-link'))
+      .slice(0, 3).map(a => a.textContent.trim()).filter(Boolean);
+    try {
+      const resp = await fetch(`${API}/analyze/oman`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ software, version, cve_ids: cveIds }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        out.innerHTML = `<div class="status-bar error"><b>Error:</b> ${err.detail}</div>`;
+        return;
+      }
+      const data = await resp.json();
+      renderOmanIntel(data, out);
+    } catch (e) {
+      out.innerHTML = `<div class="status-bar error"><b>Connection error:</b> ${e.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.querySelector('[data-i18n]').textContent = t('btnSearchOman');
+    }
+  }
+
+  function renderOmanIntel(d, container) {
+    const srcCards = (d.source_results || []).map(sr => {
+      const hasError  = !!sr.error;
+      const zeroFound = !hasError && sr.total_found === 0;
+      const borderCol = hasError ? 'var(--red)' : zeroFound ? 'rgba(255,159,10,0.4)' : 'var(--border)';
+      const countHtml = hasError
+        ? `<span style="color:var(--red);font-size:0.81rem;display:block;margin:4px 0">${sr.error}</span>`
+        : `<span style="font-size:1.6rem;font-weight:700;color:${zeroFound ? 'var(--orange)' : 'var(--accent-hi)'}">${sr.total_found.toLocaleString()}</span>`;
+      const dbg = sr.debug_info || {};
+      const diagItems = [];
+      diagItems.push(`<b>Query:</b> <code style="font-size:0.75rem;word-break:break-all">${sr.query_used||'—'}</code>`);
+      if (dbg.count_status !== undefined)  diagItems.push(`<b>Count:</b> HTTP ${dbg.count_status}`);
+      if (dbg.count_total  !== undefined)  diagItems.push(`<b>Count returned:</b> ${dbg.count_total}`);
+      if (dbg.search_status !== undefined) diagItems.push(`<b>Search:</b> HTTP ${dbg.search_status}`);
+      if (dbg.hint)                        diagItems.push(`<span style="color:var(--yellow)">⚠ ${dbg.hint}</span>`);
+      if (dbg.exception)                   diagItems.push(`<span style="color:var(--red)">Exception: ${dbg.exception}</span>`);
+      const diagHtml = diagItems.length
+        ? `<details style="margin-top:10px;text-align:left">
+             <summary style="cursor:pointer;font-size:0.74rem;color:var(--muted);list-style:none">▸ Diagnostics</summary>
+             <div style="font-size:0.76rem;line-height:1.7;margin-top:6px;padding:8px;background:var(--bg);border-radius:4px;color:var(--muted)">${diagItems.join('<br>')}</div>
+           </details>` : '';
+      return `<div style="background:var(--surface2);border:1px solid ${borderCol};border-radius:var(--radius-sm);padding:16px;text-align:center">
+        <div style="font-weight:600;margin-bottom:6px;font-size:0.86rem">${sr.source}</div>
+        ${countHtml}
+        ${!hasError ? `<div style="font-size:0.74rem;color:var(--muted);margin-top:4px">hosts found</div>` : ''}
+        ${diagHtml}
+      </div>`;
+    }).join('');
+
+    const cityRows = Object.entries(d.hosts_by_city||{}).map(([city,count]) =>
+      `<tr><td>${city}</td><td style="text-align:right;font-weight:600">${count}</td></tr>`).join('');
+    const portRows = Object.entries(d.hosts_by_port||{}).map(([port,count]) =>
+      `<tr><td>${port}</td><td style="text-align:right;font-weight:600">${count}</td></tr>`).join('');
+
+    let cveBannerHtml = '';
+    if (d.cve_ids_searched && d.cve_ids_searched.length) {
+      const srcLabel = d.cve_source === 'auto_nvd' ? 'auto-fetched from NVD'
+                     : d.cve_source === 'user_provided' ? 'from your analysis' : 'provided';
+      const cveLinks = d.cve_ids_searched.map(id =>
+        `<a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${id}" target="_blank">${id}</a>`
+      ).join(', ');
+      cveBannerHtml = `<div style="margin-bottom:20px;padding:10px 14px;background:rgba(0,113,227,0.06);border:1px solid rgba(0,113,227,0.22);border-radius:var(--radius-sm);font-size:0.82rem;color:var(--muted)">
+        🎯 <b style="color:var(--text)">CVE-based search</b> — queried all sources for hosts exposed to: ${cveLinks}
+        <span style="margin-left:6px;font-style:italic">(${srcLabel})</span>
+      </div>`;
+    } else {
+      cveBannerHtml = `<div style="margin-bottom:20px;padding:10px 14px;background:rgba(255,159,10,0.06);border:1px solid rgba(255,159,10,0.28);border-radius:var(--radius-sm);font-size:0.82rem;color:var(--yellow)">
+        ⚠ No CVEs found — fell back to product-name search. Run the main analysis pipeline first for better results.
+      </div>`;
+    }
+
+    let cveHitsHtml = '';
+    if (d.cve_hits && d.cve_hits.length) {
+      const cveRows = d.cve_hits.map(h => {
+        const riskColor = h.total > 10 ? 'var(--red)' : h.total > 0 ? 'var(--orange)' : 'var(--muted)';
+        const cell = n => n > 0 ? `<b style="color:var(--red)">${n}</b>` : '<span style="color:var(--muted)">0</span>';
+        return `<tr>
+          <td><a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${h.cve_id}" target="_blank">${h.cve_id}</a></td>
+          <td style="text-align:center">${cell(h.shodan_count)}</td>
+          <td style="text-align:center">${cell(h.fofa_count)}</td>
+          <td style="text-align:center">${cell(h.censys_count)}</td>
+          <td style="text-align:center">${cell(h.zoomeye_count||0)}</td>
+          <td style="text-align:center;font-weight:700;color:${riskColor}">${h.total>0?h.total:'—'}</td>
+        </tr>`;
+      }).join('');
+      cveHitsHtml = `<div style="margin-bottom:24px">
+        <div class="section-label" style="margin-bottom:10px">Vulnerable Hosts in Oman — by CVE</div>
+        <div style="overflow-x:auto">
+          <table class="vael-table">
+            <thead><tr><th>CVE ID</th><th style="text-align:center">Shodan</th><th style="text-align:center">FOFA</th><th style="text-align:center">Censys</th><th style="text-align:center">ZoomEye</th><th style="text-align:center">Total</th></tr></thead>
+            <tbody>${cveRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
+    const allHosts  = (d.source_results||[]).flatMap(sr => sr.hosts||[]);
+    const seenIps   = new Set();
+    const uniqHosts = allHosts.filter(h => { if (seenIps.has(h.ip)) return false; seenIps.add(h.ip); return true; });
+    let hostsHtml = '';
+    if (uniqHosts.length) {
+      const hostRows = uniqHosts.slice(0, 50).map(h => `
+        <tr>
+          <td><code style="font-size:0.8rem">${h.ip}</code></td>
+          <td>${h.port||'—'}</td>
+          <td style="color:var(--muted)">${h.protocol||'—'}</td>
+          <td>${h.city||'<span style="color:var(--muted)">—</span>'}</td>
+          <td style="color:var(--muted);font-size:0.79rem">${(h.organization||'').slice(0,35)||'—'}</td>
+          <td style="color:var(--muted)">${h.source}</td>
+        </tr>`).join('');
+      hostsHtml = `<div style="margin-top:24px">
+        <div class="section-label" style="margin-bottom:10px">Sample Exposed Hosts — product search (${uniqHosts.length} unique IPs)</div>
+        <div style="overflow-x:auto">
+          <table class="vael-table">
+            <thead><tr><th>IP</th><th>Port</th><th>Protocol</th><th>City</th><th>Organization</th><th>Source</th></tr></thead>
+            <tbody>${hostRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
+    const cveTotal = (d.cve_hits||[]).reduce((s,h) => s+h.total, 0);
+    const swTotal  = d.total_exposed||0;
+    const summaryHtml = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
+        <div class="stat-box ${cveTotal>0?'kev':''}"><div class="stat-value">${cveTotal.toLocaleString()}</div><div class="stat-label">CVE-matched hosts in Oman</div></div>
+        <div class="stat-box ${swTotal>0?'warn':''}"><div class="stat-value">${swTotal.toLocaleString()}</div><div class="stat-label">hosts running this software</div></div>
+        <div class="stat-box"><div class="stat-value">${(d.unique_ips_sampled||0).toLocaleString()}</div><div class="stat-label">unique IPs sampled</div></div>
+      </div>`;
+
+    container.innerHTML = `
+      ${cveBannerHtml}
+      ${summaryHtml}
+      ${cveHitsHtml}
+      <div style="margin-bottom:8px">
+        <div class="section-label" style="margin-bottom:12px">Software Exposure Search — all hosts running this product in Oman</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">${srcCards}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:8px">
+        ${cityRows ? `<div><div class="section-label" style="margin-bottom:10px">By City</div><table class="vael-table"><thead><tr><th>City</th><th>Count</th></tr></thead><tbody>${cityRows}</tbody></table></div>` : ''}
+        ${portRows ? `<div><div class="section-label" style="margin-bottom:10px">Open Ports</div><table class="vael-table"><thead><tr><th>Port</th><th>Count</th></tr></thead><tbody>${portRows}</tbody></table></div>` : ''}
+      </div>
+      ${hostsHtml}
+      ${d.rate_limit_warnings&&d.rate_limit_warnings.length ? `<div style="margin-top:16px;padding:10px 14px;background:rgba(255,159,10,0.06);border:1px solid rgba(255,159,10,0.28);border-radius:var(--radius-sm);font-size:0.82rem;color:var(--yellow)">⚠ ${d.rate_limit_warnings.join(' · ')}</div>` : ''}
+      <div style="margin-top:12px;font-size:0.76rem;color:var(--muted)">
+        Queried at ${d.queried_at ? new Date(d.queried_at).toLocaleString() : '—'} · Sources: ${d.sources_queried.join(', ')||'none configured'}
+      </div>`;
+  }
+
+  // ── AI Verdict tab ────────────────────────────────────────────────────
+  function renderVerdictTab(v) {
+    const el  = document.getElementById('tab-verdict');
+    const pct = Math.round(v.confidence * 100);
+    const evidenceItems = v.key_evidence.map(e => `<li>${e}</li>`).join('');
+    const paras = v.reasoning_summary.split(/\n\n+/)
+      .map(p => `<p style="margin-bottom:14px">${p.trim()}</p>`).join('');
+    const vColor = ({ 'PATCH NOW': 'var(--red)', HIGH: 'var(--orange)', MONITOR: 'var(--yellow)', DEFER: 'var(--green)' })[v.label] || 'var(--accent)';
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px;">
+        <div>
+          <div class="section-label" style="margin-bottom:6px">Verdict</div>
+          <div style="font-size:1.75rem;font-weight:700;letter-spacing:-0.5px;color:${vColor}">${v.label}</div>
+        </div>
+        <div>
+          <div class="section-label" style="margin-bottom:6px">Confidence</div>
+          <div style="font-size:1.75rem;font-weight:700;letter-spacing:-0.5px">${pct}%</div>
+          <div style="font-size:0.77rem;color:var(--muted)">${v.used_ai ? 'Gemini AI' : 'Deterministic rules'}</div>
+        </div>
+        <div>
+          <div class="section-label" style="margin-bottom:6px">Method</div>
+          <div style="font-size:0.95rem;font-weight:600;color:var(--muted)">${v.used_ai ? '🤖 AI-assisted' : '📐 Rule-based'}</div>
+        </div>
+      </div>
+      <div class="section-label" style="margin-bottom:8px">Recommendation</div>
+      <div style="padding:14px 16px;background:var(--surface2);border-left:3px solid ${vColor};border-radius:var(--radius-sm);margin-bottom:24px;font-weight:500;line-height:1.6">${v.recommendation}</div>
+      <div class="section-label" style="margin-bottom:10px">Analysis</div>
+      <div style="margin-bottom:24px;line-height:1.8;font-size:0.9rem">${paras}</div>
+      <div class="section-label" style="margin-bottom:10px">Key Evidence</div>
+      <ul class="evidence-list">${evidenceItems}</ul>`;
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────
+  setLang('en');
+</script>
+</body>
+</html>

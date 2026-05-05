@@ -9,6 +9,9 @@ from __future__ import annotations
 import sys
 import os
 from datetime import date
+
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from schemas.stage1 import CVERecord, CVSSv3, Severity, Stage1Result
@@ -276,6 +279,8 @@ def test_prompt_contains_all_key_facts():
     s2.enrichments = [ExploitabilityEnrichment(
         cve_id="CVE-2021-44228", vep_tier=VEPTier.T0_PATCH_NOW,
         vep_score=100.0, in_kev=True,
+        kev_entry=KEVEntry(cve_id="CVE-2021-44228", vulnerability_name="Log4Shell",
+                           date_added=date(2021, 12, 10)),
         epss=EPSSEntry(cve_id="CVE-2021-44228", epss=0.975, percentile=0.999),
     )]
 

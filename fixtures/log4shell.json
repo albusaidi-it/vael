@@ -1,0 +1,417 @@
+{
+  "key": "log4j:2.14.1",
+  "stage1": {
+    "software": "log4j",
+    "version": "2.14.1",
+    "cpe_string": "cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*",
+    "query_ts": "2024-06-01T10:00:00",
+    "cves": [
+      {
+        "cve_id": "CVE-2021-44228",
+        "source": "NVD",
+        "description": "Apache Log4j2 2.0-beta9 through 2.15.0 JNDI features used in configuration, log messages, and parameters do not protect against attacker-controlled LDAP and other JNDI endpoints. An attacker who can control log messages or log message parameters can execute arbitrary code loaded from LDAP servers when message lookup substitution is enabled. From log4j 2.15.0, this behavior has been disabled by default.",
+        "published": "2021-12-10T10:15:09",
+        "last_modified": "2023-04-03T18:15:12",
+        "cvss_v3": {
+          "score": 10.0,
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+          "severity": "CRITICAL",
+          "attack_vector": "NETWORK",
+          "attack_complexity": "LOW",
+          "privileges_required": "NONE",
+          "user_interaction": "NONE",
+          "confidentiality_impact": "HIGH",
+          "integrity_impact": "HIGH",
+          "availability_impact": "HIGH"
+        },
+        "cvss_v2": {
+          "score": 9.3,
+          "vector": "AV:N/AC:M/Au:N/C:C/I:C/A:C",
+          "severity": "HIGH"
+        },
+        "cwes": [
+          {
+            "cwe_id": "CWE-917",
+            "name": "Improper Neutralization of Special Elements used in an Expression Language Statement ('EL Injection')",
+            "description": "The software constructs all or part of an expression language statement in a way that allows attackers to modify the statement."
+          }
+        ],
+        "references": [
+          {
+            "url": "https://logging.apache.org/log4j/2.x/security.html",
+            "source": "APACHE",
+            "tags": ["Vendor Advisory"]
+          },
+          {
+            "url": "https://github.com/advisories/GHSA-jfh8-c2jp-hdp8",
+            "source": "GITHUB",
+            "tags": ["Third Party Advisory"]
+          },
+          {
+            "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+            "source": "CISA",
+            "tags": ["US Government Resource"]
+          }
+        ],
+        "cpe_matches": [
+          {
+            "cpe23": "cpe:2.3:a:apache:log4j:*:*:*:*:*:*:*:*",
+            "version_start_including": "2.0",
+            "version_end_excluding": "2.15.0",
+            "vulnerable": true
+          }
+        ],
+        "affected_versions_raw": ["2.0-beta9 through 2.14.1"],
+        "version_matched": true
+      },
+      {
+        "cve_id": "CVE-2021-45046",
+        "source": "NVD",
+        "description": "The fix to address CVE-2021-44228 in Apache Log4j 2.15.0 was incomplete in certain non-default configurations. A remote attacker with control of Thread Context Map input data when the logging configuration uses a non-default Pattern Layout with a Context Lookup can craft malicious input data to cause information leak and remote code execution.",
+        "published": "2021-12-14T19:15:07",
+        "last_modified": "2023-04-03T18:15:14",
+        "cvss_v3": {
+          "score": 9.0,
+          "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H",
+          "severity": "CRITICAL",
+          "attack_vector": "NETWORK",
+          "attack_complexity": "HIGH",
+          "privileges_required": "NONE",
+          "user_interaction": "NONE",
+          "confidentiality_impact": "HIGH",
+          "integrity_impact": "HIGH",
+          "availability_impact": "HIGH"
+        },
+        "cvss_v2": null,
+        "cwes": [
+          {
+            "cwe_id": "CWE-917",
+            "name": "Improper Neutralization of Special Elements used in an Expression Language Statement",
+            "description": null
+          }
+        ],
+        "references": [
+          {
+            "url": "https://logging.apache.org/log4j/2.x/security.html",
+            "source": "APACHE",
+            "tags": ["Vendor Advisory"]
+          }
+        ],
+        "cpe_matches": [],
+        "affected_versions_raw": ["2.0-beta9 through 2.15.0"],
+        "version_matched": true
+      },
+      {
+        "cve_id": "CVE-2021-44832",
+        "source": "NVD",
+        "description": "Apache Log4j2 versions 2.0-beta7 through 2.17.0 are vulnerable to a remote code execution attack where an attacker with permission to modify the logging configuration file can construct a malicious configuration using a JDBC Appender with a data source referencing a JNDI URI which can execute remote code.",
+        "published": "2021-12-28T20:15:07",
+        "last_modified": "2022-07-25T18:15:29",
+        "cvss_v3": {
+          "score": 6.6,
+          "vector": "CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:U/C:H/I:H/A:H",
+          "severity": "MEDIUM",
+          "attack_vector": "NETWORK",
+          "attack_complexity": "HIGH",
+          "privileges_required": "HIGH",
+          "user_interaction": "NONE",
+          "confidentiality_impact": "HIGH",
+          "integrity_impact": "HIGH",
+          "availability_impact": "HIGH"
+        },
+        "cvss_v2": null,
+        "cwes": [
+          {
+            "cwe_id": "CWE-74",
+            "name": "Improper Neutralization of Special Elements in Output Used by a Downstream Component ('Injection')",
+            "description": null
+          }
+        ],
+        "references": [],
+        "cpe_matches": [],
+        "affected_versions_raw": ["2.0-beta7 through 2.17.0"],
+        "version_matched": true
+      }
+    ],
+    "misconfig_flags": [],
+    "total_cves": 3,
+    "critical_count": 2,
+    "high_count": 0,
+    "version_matched_count": 3,
+    "sources_queried": ["NVD", "OSV"],
+    "errors": []
+  },
+  "stage2": {
+    "software": "log4j",
+    "version": "2.14.1",
+    "query_ts": "2024-06-01T10:00:05",
+    "stage1_cves": [],
+    "enrichments": [
+      {
+        "cve_id": "CVE-2021-44228",
+        "epss": {
+          "cve_id": "CVE-2021-44228",
+          "epss": 0.97588,
+          "percentile": 0.99997,
+          "score_date": "2024-06-01"
+        },
+        "in_kev": true,
+        "kev_entry": {
+          "cve_id": "CVE-2021-44228",
+          "vendor_project": "Apache",
+          "product": "Log4j2",
+          "vulnerability_name": "Apache Log4j2 Remote Code Execution Vulnerability",
+          "date_added": "2021-12-10",
+          "short_description": "Apache Log4j2 contains a remote code execution vulnerability that allows a remote attacker to execute code on the server.",
+          "required_action": "Apply updates per vendor instructions.",
+          "due_date": "2021-12-24",
+          "known_ransomware_campaign_use": "Known",
+          "notes": "This vulnerability is also known as Log4Shell."
+        },
+        "exploit_maturity": "WEAPONIZED",
+        "patch": {
+          "patch_available": true,
+          "fixed_versions": ["2.15.0", "2.16.0", "2.17.1"],
+          "vendor_advisory_url": "https://logging.apache.org/log4j/2.x/security.html",
+          "patch_urls": []
+        },
+        "vep_tier": "T0_PATCH_NOW",
+        "vep_score": 98.5,
+        "reasoning": [
+          "CISA KEV: exploited in the wild",
+          "EPSS 97.6th percentile (extremely high)",
+          "CVSS 10.0 — maximum severity",
+          "Version 2.14.1 is directly affected (version_matched=True)",
+          "Weaponized exploits available (Metasploit, Nuclei templates)"
+        ]
+      },
+      {
+        "cve_id": "CVE-2021-45046",
+        "epss": {
+          "cve_id": "CVE-2021-45046",
+          "epss": 0.97542,
+          "percentile": 0.99996,
+          "score_date": "2024-06-01"
+        },
+        "in_kev": true,
+        "kev_entry": {
+          "cve_id": "CVE-2021-45046",
+          "vendor_project": "Apache",
+          "product": "Log4j2",
+          "vulnerability_name": "Apache Log4j2 Remote Code Execution Vulnerability",
+          "date_added": "2021-12-14",
+          "short_description": "Apache Log4j2 contains a remote code execution vulnerability resulting from an incomplete fix for CVE-2021-44228.",
+          "required_action": "Apply updates per vendor instructions.",
+          "due_date": "2021-12-28",
+          "known_ransomware_campaign_use": "Known",
+          "notes": null
+        },
+        "exploit_maturity": "WEAPONIZED",
+        "patch": {
+          "patch_available": true,
+          "fixed_versions": ["2.16.0", "2.17.1"],
+          "vendor_advisory_url": "https://logging.apache.org/log4j/2.x/security.html",
+          "patch_urls": []
+        },
+        "vep_tier": "T0_PATCH_NOW",
+        "vep_score": 95.0,
+        "reasoning": [
+          "CISA KEV: exploited in the wild",
+          "EPSS 97.5th percentile (extremely high)",
+          "CVSS 9.0 — critical severity",
+          "Incomplete fix for CVE-2021-44228 — same attack surface"
+        ]
+      },
+      {
+        "cve_id": "CVE-2021-44832",
+        "epss": {
+          "cve_id": "CVE-2021-44832",
+          "epss": 0.00712,
+          "percentile": 0.78921,
+          "score_date": "2024-06-01"
+        },
+        "in_kev": false,
+        "kev_entry": null,
+        "exploit_maturity": "PROOF_OF_CONCEPT",
+        "patch": {
+          "patch_available": true,
+          "fixed_versions": ["2.17.1", "2.12.4", "2.3.2"],
+          "vendor_advisory_url": "https://logging.apache.org/log4j/2.x/security.html",
+          "patch_urls": []
+        },
+        "vep_tier": "T2_MONITOR",
+        "vep_score": 31.2,
+        "reasoning": [
+          "Not in CISA KEV",
+          "EPSS 0.71% — low probability",
+          "CVSS 6.6 — requires HIGH privileges to exploit",
+          "Requires write access to logging config (local privilege required)"
+        ]
+      }
+    ],
+    "kev_count": 2,
+    "high_epss_count": 2,
+    "t0_patch_now_count": 2,
+    "t1_high_count": 0,
+    "sources_queried": ["EPSS", "CISA_KEV"],
+    "errors": []
+  },
+  "stage3": {
+    "software": "log4j",
+    "version": "2.14.1",
+    "query_ts": "2024-06-01T10:00:12",
+    "bundles": [
+      {
+        "cve_id": "CVE-2021-44228",
+        "pocs": [
+          {
+            "cve_id": "CVE-2021-44228",
+            "source": "GITHUB",
+            "url": "https://github.com/tangxiaofeng7/CVE-2021-44228-Apache-Log4j-Rce",
+            "title": "CVE-2021-44228 Apache Log4j RCE PoC",
+            "author": "tangxiaofeng7",
+            "published": "2021-12-10",
+            "stars": 1847,
+            "forks": 531,
+            "description": "Apache Log4j RCE vulnerability demonstration with LDAP callback server and exploitation payload.",
+            "quality": "FUNCTIONAL",
+            "version_compatibility": "CONFIRMED",
+            "detected_versions": ["2.14.1", "2.14.0", "2.13.3"],
+            "has_executable_code": true,
+            "has_readme": true,
+            "language": "java",
+            "raw_meta": {}
+          },
+          {
+            "cve_id": "CVE-2021-44228",
+            "source": "NUCLEI",
+            "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/cves/2021/CVE-2021-44228.yaml",
+            "title": "Apache Log4j RCE Detection (CVE-2021-44228)",
+            "author": "ProjectDiscovery",
+            "published": "2021-12-11",
+            "stars": null,
+            "forks": null,
+            "description": "Nuclei template for detecting CVE-2021-44228 via JNDI callback-based detection.",
+            "quality": "WEAPONIZED",
+            "version_compatibility": "LIKELY",
+            "detected_versions": [],
+            "has_executable_code": true,
+            "has_readme": false,
+            "language": "yaml",
+            "raw_meta": {}
+          },
+          {
+            "cve_id": "CVE-2021-44228",
+            "source": "EXPLOIT_DB",
+            "url": "https://www.exploit-db.com/exploits/51183",
+            "title": "Apache Log4j 2 - Remote Code Execution (RCE)",
+            "author": "SaumyajeetDas",
+            "published": "2022-05-19",
+            "stars": null,
+            "forks": null,
+            "description": "Log4Shell CVE-2021-44228 exploit in Python targeting Apache Log4j2 versions prior to 2.15.0.",
+            "quality": "FUNCTIONAL",
+            "version_compatibility": "CONFIRMED",
+            "detected_versions": ["< 2.15.0"],
+            "has_executable_code": true,
+            "has_readme": true,
+            "language": "python",
+            "raw_meta": {}
+          },
+          {
+            "cve_id": "CVE-2021-44228",
+            "source": "GITHUB",
+            "url": "https://github.com/christophetd/log4shell-vulnerable-app",
+            "title": "Vulnerable Spring Boot app for Log4Shell demo",
+            "author": "christophetd",
+            "published": "2021-12-10",
+            "stars": 1623,
+            "forks": 744,
+            "description": "A vulnerable Spring Boot application for testing Log4Shell exploitation in a safe lab environment.",
+            "quality": "FUNCTIONAL",
+            "version_compatibility": "CONFIRMED",
+            "detected_versions": ["2.14.1"],
+            "has_executable_code": true,
+            "has_readme": true,
+            "language": "java",
+            "raw_meta": {}
+          }
+        ],
+        "total_found": 4,
+        "best_quality": "WEAPONIZED",
+        "compatible_pocs_count": 4
+      },
+      {
+        "cve_id": "CVE-2021-45046",
+        "pocs": [
+          {
+            "cve_id": "CVE-2021-45046",
+            "source": "NUCLEI",
+            "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/cves/2021/CVE-2021-45046.yaml",
+            "title": "Apache Log4j RCE - Incomplete Fix (CVE-2021-45046)",
+            "author": "ProjectDiscovery",
+            "published": "2021-12-15",
+            "stars": null,
+            "forks": null,
+            "description": "Detection template for CVE-2021-45046, the incomplete fix bypass of Log4Shell.",
+            "quality": "WEAPONIZED",
+            "version_compatibility": "LIKELY",
+            "detected_versions": [],
+            "has_executable_code": true,
+            "has_readme": false,
+            "language": "yaml",
+            "raw_meta": {}
+          }
+        ],
+        "total_found": 1,
+        "best_quality": "WEAPONIZED",
+        "compatible_pocs_count": 1
+      },
+      {
+        "cve_id": "CVE-2021-44832",
+        "pocs": [
+          {
+            "cve_id": "CVE-2021-44832",
+            "source": "GITHUB",
+            "url": "https://github.com/cckuailong/log4j_RCE_CVE-2021-44832",
+            "title": "CVE-2021-44832 PoC",
+            "author": "cckuailong",
+            "published": "2021-12-29",
+            "stars": 42,
+            "forks": 18,
+            "description": "Proof of concept for CVE-2021-44832 Log4j RCE via malicious JDBC Appender config.",
+            "quality": "CONCEPTUAL",
+            "version_compatibility": "LIKELY",
+            "detected_versions": ["2.0-2.17.0"],
+            "has_executable_code": false,
+            "has_readme": true,
+            "language": "markdown",
+            "raw_meta": {}
+          }
+        ],
+        "total_found": 1,
+        "best_quality": "CONCEPTUAL",
+        "compatible_pocs_count": 1
+      }
+    ],
+    "total_pocs": 6,
+    "weaponized_count": 2,
+    "cves_with_compatible_pocs": 3,
+    "sources_queried": ["GITHUB", "EXPLOIT_DB", "NUCLEI"],
+    "errors": []
+  },
+  "verdict": {
+    "label": "PATCH NOW",
+    "recommendation": "Upgrade log4j to 2.17.1 or later immediately — two KEV-listed RCE vulnerabilities with EPSS >97% are actively exploited in ransomware campaigns.",
+    "confidence": 0.99,
+    "reasoning_summary": "log4j 2.14.1 is critically exposed through CVE-2021-44228 (Log4Shell) and CVE-2021-45046, both carrying CVSS 10.0/9.0 scores respectively and classified as actively exploited by CISA's KEV catalog. Log4Shell is one of the most widespread vulnerabilities in the history of enterprise software, with EPSS scores exceeding 97th percentile.\n\nThe attack vector is trivially exploitable: any logging call that includes attacker-controlled input can trigger remote class loading via JNDI/LDAP. No authentication is required. Weaponized Nuclei templates and functional Python/Java exploits are publicly available. Multiple threat actor groups — including nation-state actors — have weaponized this vulnerability in ransomware and cryptominer deployments.\n\nCVE-2021-44832 poses a lower but non-negligible risk; it requires write access to the logging configuration file, significantly raising the bar for exploitation. It warrants patching but is not the immediate priority.\n\nThe fix is straightforward: upgrading to log4j 2.17.1+ addresses all three CVEs. No workarounds should be relied upon — the 2.15.0 patch was incomplete (CVE-2021-45046), and configuration-based mitigations (e.g., log4j2.formatMsgNoLookups) are bypassed in some scenarios.",
+    "key_evidence": [
+      "CVE-2021-44228: CVSS 10.0, EPSS 97.6%, CISA KEV (added 2021-12-10), known ransomware use",
+      "CVE-2021-45046: CVSS 9.0, EPSS 97.5%, CISA KEV (added 2021-12-14), bypasses 2.15.0 patch",
+      "4 public PoCs for CVE-2021-44228 including Nuclei WEAPONIZED template",
+      "log4j 2.14.1 is directly version-matched for all 3 CVEs",
+      "Fix available: upgrade to 2.17.1+"
+    ],
+    "used_ai": false
+  }
+}

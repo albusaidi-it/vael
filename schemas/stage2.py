@@ -65,6 +65,14 @@ class PatchInfo(BaseModel):
     patch_urls: list[str] = Field(default_factory=list)
 
 
+class ThreatIntel(BaseModel):
+    """VulnCheck threat actor / ransomware group attribution."""
+    threat_actors: list[str] = Field(default_factory=list)
+    ransomware_groups: list[str] = Field(default_factory=list)
+    in_the_wild: bool = False
+    exploitation_notes: list[str] = Field(default_factory=list)
+
+
 class ExploitabilityEnrichment(BaseModel):
     """Per-CVE enrichment. Pairs with a Stage 1 CVERecord."""
     cve_id: str
@@ -73,6 +81,7 @@ class ExploitabilityEnrichment(BaseModel):
     kev_entry: Optional[KEVEntry] = None
     exploit_maturity: ExploitMaturity = ExploitMaturity.UNKNOWN
     patch: PatchInfo = Field(default_factory=PatchInfo)
+    threat_intel: Optional[ThreatIntel] = None
 
     # Computed outputs
     vep_tier: VEPTier = VEPTier.T_UNKNOWN
@@ -92,14 +101,18 @@ class Stage2Result(BaseModel):
     high_epss_count: int = 0
     t0_patch_now_count: int = 0
     t1_high_count: int = 0
+    t2_monitor_count: int = 0
     sources_queried: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+    rate_limit_warnings: list[str] = Field(default_factory=list)
+    epss_score_date: Optional[date] = None   # date of the EPSS feed used
 
     def compute_summary(self) -> None:
         self.kev_count          = sum(1 for e in self.enrichments if e.in_kev)
         self.high_epss_count    = sum(1 for e in self.enrichments if e.epss and e.epss.epss > 0.5)
         self.t0_patch_now_count = sum(1 for e in self.enrichments if e.vep_tier == VEPTier.T0_PATCH_NOW)
         self.t1_high_count      = sum(1 for e in self.enrichments if e.vep_tier == VEPTier.T1_HIGH)
+        self.t2_monitor_count   = sum(1 for e in self.enrichments if e.vep_tier == VEPTier.T2_MONITOR)
 
     def top_priority_cves(self, limit: int = 10) -> list[tuple[CVERecord, ExploitabilityEnrichment]]:
         """Return CVEs sorted by VEP score descending, paired with enrichment."""

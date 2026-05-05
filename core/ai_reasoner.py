@@ -62,6 +62,31 @@ RECOMMENDATION_BY_TIER = {
 }
 
 
+def _deterministic_confidence(enrichment, cve, stage3: Optional[Stage3Result]) -> float:
+    """
+    Score how confident the deterministic verdict is based on available evidence.
+    Each strong signal adds to a base of 0.4; capped at 0.95.
+    """
+    score = 0.40
+    if enrichment.in_kev:
+        score += 0.25           # actively exploited — very strong signal
+    if enrichment.epss and enrichment.epss.epss is not None:
+        score += 0.10           # quantitative probability available
+    if enrichment.epss and enrichment.epss.epss > 0.5:
+        score += 0.05           # high exploitation probability
+    if enrichment.vep_score and enrichment.vep_score > 0:
+        score += 0.05           # scored (not T_UNKNOWN)
+    if cve.version_matched:
+        score += 0.10           # version confirmed affected
+    if stage3:
+        bundle = stage3.get_bundle(enrichment.cve_id)
+        if bundle and bundle.total_found > 0:
+            score += 0.05       # public PoC evidence
+        if bundle and bundle.compatible_pocs_count > 0:
+            score += 0.05       # version-compatible PoC
+    return round(min(score, 0.95), 2)
+
+
 def _deterministic_verdict(stage2: Stage2Result, stage3: Optional[Stage3Result] = None) -> RiskVerdict:
     """Rule-based verdict from Stage 2 data alone. Used when Gemini is disabled or fails."""
     top = stage2.top_priority_cves(limit=1)
@@ -121,10 +146,12 @@ def _deterministic_verdict(stage2: Stage2Result, stage3: Optional[Stage3Result] 
             f"public exploit based on current evidence."
         )
 
+    confidence = _deterministic_confidence(e, cve, stage3)
+
     return RiskVerdict(
         label=LABEL_BY_TIER[tier],
         recommendation=RECOMMENDATION_BY_TIER[tier],
-        confidence=0.75,
+        confidence=confidence,
         reasoning_summary=narrative,
         key_evidence=evidence,
         used_ai=False,
@@ -136,7 +163,7 @@ def _build_prompt(
     stage1: Stage1Result,
     stage2: Stage2Result,
     stage3: Optional[Stage3Result] = None,
-    top_n: int = 5,
+    top_n: int = 10,
 ) -> str:
     """Build a data-rich prompt with all pre-fetched facts."""
     top = stage2.top_priority_cves(limit=top_n)
@@ -161,30 +188,47 @@ def _build_prompt(
         f"High EPSS (>0.5): {stage2.high_epss_count}",
         f"T0 PATCH-NOW    : {stage2.t0_patch_now_count}",
         f"T1 HIGH         : {stage2.t1_high_count}",
+        f"T2 MONITOR      : {stage2.t2_monitor_count}",
         "",
         "─── TOP-PRIORITY CVEs (sorted by VEP score) ──────────────────",
     ]
 
     for i, (cve, e) in enumerate(top, 1):
-        cvss = cve.cvss_v3.score if cve.cvss_v3 else None
-        epss = f"{e.epss.epss:.3f} (p{e.epss.percentile*100:.1f})" if e.epss else "n/a"
-        kev_line = f" [IN CISA KEV, added {e.kev_entry.date_added}]" if e.in_kev else ""
+        cvss      = cve.cvss_v3.score if cve.cvss_v3 else None
+        cvss_vec  = cve.cvss_v3.vector if cve.cvss_v3 else None
+        epss      = f"{e.epss.epss:.3f} (p{e.epss.percentile*100:.1f})" if e.epss else "n/a"
+        kev_line  = f" [IN CISA KEV, added {e.kev_entry.date_added}]" if e.in_kev else ""
         patch_line = (
-            f"fixed in {', '.join(e.patch.fixed_versions[:3])}"
+            f"fixed in {', '.join(e.patch.fixed_versions)}"
             if e.patch.fixed_versions else "no patch info"
         )
+
+        # Derive attack complexity from CVSS vector for richer context
+        attack_ctx = ""
+        if cvss_vec:
+            if "AV:N" in cvss_vec:
+                attack_ctx = "network-exploitable"
+            elif "AV:A" in cvss_vec:
+                attack_ctx = "adjacent-network"
+            elif "AV:L" in cvss_vec:
+                attack_ctx = "local-only"
+            if "PR:N" in cvss_vec:
+                attack_ctx += ", no privileges required"
+            if "UI:N" in cvss_vec:
+                attack_ctx += ", no user interaction"
 
         lines.append(
             f"\n{i}. {cve.cve_id}{kev_line}"
             f"\n   VEP tier      : {e.vep_tier.value} (score {e.vep_score:.0f}/100)"
             f"\n   CVSS v3       : {cvss if cvss else 'n/a'}"
-            f"\n   EPSS          : {epss}"
+            + (f"  [{attack_ctx}]" if attack_ctx else "")
+            + f"\n   EPSS          : {epss}"
             f"\n   Version match : {'CONFIRMED' if cve.version_matched else 'UNKNOWN'}"
             f"\n   Maturity      : {e.exploit_maturity.value}"
             f"\n   Patch         : {patch_line}"
         )
         if cve.description:
-            desc = cve.description[:300].replace("\n", " ")
+            desc = cve.description[:500].replace("\n", " ")
             lines.append(f"   Description   : {desc}")
 
         # Stage 3 PoC bundle
@@ -196,16 +240,16 @@ def _build_prompt(
                     f"({bundle.compatible_pocs_count} version-compatible); "
                     f"best quality = {bundle.best_quality.value}"
                 )
-                for p in bundle.pocs[:3]:
+                for p in bundle.pocs[:5]:
                     lines.append(
                         f"     · [{p.source.value}] {p.title or p.url} "
                         f"(quality={p.quality.value}, compat={p.version_compatibility.value})"
                     )
 
-    # Misconfig flags summary
+    # Misconfig flags — all of them, not capped
     if stage1.misconfig_flags:
         lines.append("\n─── MISCONFIGURATION FLAGS ──────────────────────────────────")
-        for f in stage1.misconfig_flags[:5]:
+        for f in stage1.misconfig_flags:
             lines.append(f"  · [{f.source}] {f.rule_id}: {f.title} ({f.severity.value})")
 
     lines.extend([
@@ -319,7 +363,8 @@ def build_verdict(
     Tries Gemini first. Falls back to deterministic reasoning on any failure
     (missing API key, missing SDK, API error, parse error).
     """
-    api_key = gemini_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    from core.config import settings
+    api_key = gemini_api_key or settings.effective_gemini_key()
 
     if force_deterministic or not api_key:
         if not api_key:

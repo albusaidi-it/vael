@@ -20,16 +20,18 @@ Strategy:
 from __future__ import annotations
 
 import logging
-import os
 import re
 import time
 from datetime import datetime, date
 from typing import Optional
 import httpx
+from core import http_client
+from core import cache as _cache
 
 from schemas.stage3 import (
     PoCRecord, PoCSource, PoCQuality, VersionCompatibility,
 )
+from core.rate_limiter import rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +53,8 @@ TRUSTED_AUTHORS = {
 FAKE_REPO_PATTERNS = [
     re.compile(r"^(awesome|list|collection|blog|writeup)s?[-_]?", re.I),
     re.compile(r"(walkthrough|tutorial|explained)$", re.I),
-    re.compile(r"^cve-\d{4}-\d+$", re.I),   # Just the CVE ID as repo name → often spam
+    # Note: "^cve-YYYY-NNNNN$" repos are intentionally NOT blocked —
+    # many legitimate single-CVE PoCs use this exact naming convention.
 ]
 
 # Files that indicate executable PoC code
@@ -63,12 +66,12 @@ EXPLOIT_FILE_PATTERNS = [
 ]
 
 
-def _is_likely_fake(repo_name: str, description: Optional[str]) -> bool:
+def _is_likely_fake(repo_name: str, description: Optional[str], stars: int = 0) -> bool:
     """Heuristic check for fake/spam repos."""
     name_lower = repo_name.lower()
 
-    # Empty or minimal description for a flashy CVE name
-    if description is None or len(description) < 15:
+    # Empty description is only suspicious if the repo also has no stars
+    if (description is None or len(description) < 15) and stars == 0:
         return True
 
     for pat in FAKE_REPO_PATTERNS:
@@ -100,7 +103,7 @@ def _classify_quality(
     owner   = (repo.get("owner", {}) or {}).get("login", "").lower()
     size_kb = repo.get("size", 0)
 
-    if _is_likely_fake(name, desc):
+    if _is_likely_fake(name, desc, stars=stars):
         return PoCQuality.FAKE
 
     # Trusted author is strong signal
@@ -180,6 +183,10 @@ def _fetch_readme(
     try:
         url = GITHUB_README_URL.format(owner=owner, repo=repo)
         resp = client.get(url, headers=headers, timeout=15)
+        rate_limiter.record("github", dict(resp.headers), resp.status_code)
+        if resp.status_code in (403, 429):
+            logger.warning("GitHub REST rate limit hit fetching README for %s/%s", owner, repo)
+            return ""
         if resp.status_code != 200:
             return ""
         data = resp.json()
@@ -194,12 +201,31 @@ def _fetch_readme(
         return ""
 
 
+_GITHUB_CACHE_TTL = 6 * 3600   # 6 hours
+
+
+def _cache_load(cve_id: str) -> Optional[list[PoCRecord]]:
+    key  = _cache.make_key("github_pocs", cve_id.upper())
+    data = _cache.get(key)
+    if data is None:
+        return None
+    try:
+        return [PoCRecord.model_validate(r) for r in data]
+    except Exception:
+        return None
+
+
+def _cache_save(cve_id: str, pocs: list[PoCRecord]) -> None:
+    key = _cache.make_key("github_pocs", cve_id.upper())
+    _cache.set(key, "github_pocs", [p.model_dump(mode="json") for p in pocs], _GITHUB_CACHE_TTL)
+
+
 def search_github(
     cve_id: str,
     target_version: str,
     github_token: Optional[str] = None,
     max_repos: int = 15,
-    deep_analyze: int = 5,
+    deep_analyze: int = 8,
 ) -> tuple[list[PoCRecord], list[str]]:
     """
     Search GitHub for PoCs of a specific CVE.
@@ -226,72 +252,90 @@ def search_github(
         "per_page": min(max_repos, 30),
     }
 
+    cached = _cache_load(cve_id)
+    if cached is not None:
+        logger.info("GitHub cache hit: %d PoCs for %s", len(cached), cve_id)
+        return cached, []
+
     pocs: list[PoCRecord] = []
     errors: list[str] = []
 
-    with httpx.Client(timeout=20) as client:
-        # ── 1. Search ─────────────────────────────────────────────────
-        try:
-            resp = client.get(GITHUB_SEARCH_URL, params=params, headers=headers)
-            if resp.status_code == 403:
-                errors.append(f"GitHub rate-limited for {cve_id} — provide github_token")
-                return pocs, errors
-            resp.raise_for_status()
-        except httpx.HTTPError as e:
-            errors.append(f"GitHub search error for {cve_id}: {e}")
-            return pocs, errors
+    has_token = bool(github_token)
+    client = http_client.api
+    # ── 1. Search ─────────────────────────────────────────────────
+    # Pre-flight check
+    warn = rate_limiter.warn_and_log("github_search", has_token)
+    if warn:
+        errors.append(f"[RateLimit] {warn}")
 
-        items = resp.json().get("items", [])[:max_repos]
-        if not github_token:
-            time.sleep(RATE_LIMIT_DELAY)
-
-        # ── 2. Per-repo analysis ──────────────────────────────────────
-        for i, repo in enumerate(items):
-            owner = (repo.get("owner", {}) or {}).get("login", "")
-            name  = repo.get("name", "")
-            url   = repo.get("html_url", "")
-            desc  = repo.get("description") or ""
-
-            # Fetch README only for top candidates (expensive)
-            readme_text = ""
-            has_readme = False
-            if i < deep_analyze:
-                readme_text = _fetch_readme(client, owner, name, headers)
-                has_readme  = bool(readme_text)
-                if not github_token:
-                    time.sleep(RATE_LIMIT_DELAY)
-
-            quality = _classify_quality(repo, has_readme, readme_text)
-            compat, detected_versions = _check_version_compatibility(
-                target_version, readme_text, desc
+    try:
+        resp = client.get(GITHUB_SEARCH_URL, params=params, headers=headers, timeout=20)
+        rate_limiter.record("github_search", dict(resp.headers), resp.status_code)
+        if resp.status_code in (403, 429):
+            tip = "" if has_token else " Set GITHUB_TOKEN to get 30 req/min instead of 10."
+            errors.append(
+                f"[RateLimit] GitHub search rate limit hit for {cve_id}.{tip} "
+                f"Retry after {resp.headers.get('retry-after', 'unknown')}s."
             )
+            return pocs, errors
+        resp.raise_for_status()
+    except httpx.HTTPError as e:
+        errors.append(f"GitHub search error for {cve_id}: {e}")
+        return pocs, errors
 
-            # Extract publish date
-            pub = None
-            if repo.get("created_at"):
-                try:
-                    pub = date.fromisoformat(repo["created_at"].split("T")[0])
-                except ValueError:
-                    pass
+    items = resp.json().get("items", [])[:max_repos]
+    if not github_token:
+        time.sleep(RATE_LIMIT_DELAY)
 
-            pocs.append(PoCRecord(
-                cve_id=cve_id,
-                source=PoCSource.GITHUB,
-                url=url,
-                title=f"{owner}/{name}",
-                author=owner,
-                published=pub,
-                stars=repo.get("stargazers_count"),
-                forks=repo.get("forks_count"),
-                description=desc[:500] if desc else None,
-                quality=quality,
-                version_compatibility=compat,
-                detected_versions=detected_versions,
-                has_executable_code=repo.get("size", 0) > 5,   # size in KB
-                has_readme=has_readme,
-                language=_detect_language(repo),
-                raw_meta={"size_kb": repo.get("size", 0)},
-            ))
+    # ── 2. Per-repo analysis ──────────────────────────────────────
+    for i, repo in enumerate(items):
+        owner = (repo.get("owner", {}) or {}).get("login", "")
+        name  = repo.get("name", "")
+        url   = repo.get("html_url", "")
+        desc  = repo.get("description") or ""
+
+        # Fetch README only for top candidates (expensive)
+        readme_text = ""
+        has_readme = False
+        if i < deep_analyze:
+            readme_text = _fetch_readme(client, owner, name, headers)
+            has_readme  = bool(readme_text)
+            if not github_token:
+                time.sleep(RATE_LIMIT_DELAY)
+
+        quality = _classify_quality(repo, has_readme, readme_text)
+        compat, detected_versions = _check_version_compatibility(
+            target_version, readme_text, desc
+        )
+
+        # Extract publish date
+        pub = None
+        if repo.get("created_at"):
+            try:
+                pub = date.fromisoformat(repo["created_at"].split("T")[0])
+            except ValueError:
+                pass
+
+        pocs.append(PoCRecord(
+            cve_id=cve_id,
+            source=PoCSource.GITHUB,
+            url=url,
+            title=f"{owner}/{name}",
+            author=owner,
+            published=pub,
+            stars=repo.get("stargazers_count"),
+            forks=repo.get("forks_count"),
+            description=desc[:500] if desc else None,
+            quality=quality,
+            version_compatibility=compat,
+            detected_versions=detected_versions,
+            has_executable_code=repo.get("size", 0) > 5,   # size in KB
+            has_readme=has_readme,
+            language=_detect_language(repo),
+            raw_meta={"size_kb": repo.get("size", 0)},
+        ))
 
     logger.info("GitHub: %d PoCs found for %s", len(pocs), cve_id)
+    if pocs:
+        _cache_save(cve_id, pocs)
     return pocs, errors

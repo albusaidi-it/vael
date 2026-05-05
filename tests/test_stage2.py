@@ -13,6 +13,9 @@ from __future__ import annotations
 import sys
 import os
 from datetime import date
+
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from schemas.stage1 import (
@@ -212,6 +215,7 @@ def test_stage2_offline_synthetic():
 SKIP_INTEGRATION = os.getenv("VAEL_SKIP_INTEGRATION", "0") == "1"
 
 
+@pytest.mark.integration
 def test_kev_log4shell_live():
     if SKIP_INTEGRATION:
         print("⊘ integration test skipped")
@@ -224,6 +228,7 @@ def test_kev_log4shell_live():
     print(f"✓ KEV live: CVE-2021-44228 = {entry.vulnerability_name}")
 
 
+@pytest.mark.integration
 def test_epss_log4shell_live():
     if SKIP_INTEGRATION:
         print("⊘ integration test skipped")
@@ -236,6 +241,7 @@ def test_epss_log4shell_live():
     print(f"✓ EPSS live: CVE-2021-44228 = {entry.epss:.3f} (p{entry.percentile*100:.1f})")
 
 
+@pytest.mark.integration
 def test_full_pipeline_log4j():
     if SKIP_INTEGRATION:
         print("⊘ integration test skipped")

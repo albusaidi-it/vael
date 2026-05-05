@@ -27,8 +27,15 @@ VENDOR_ADVISORY_HOSTS = {
     "www.openssl.org", "openssl.org",
     "support.microsoft.com", "msrc.microsoft.com",
     "ubuntu.com", "access.redhat.com", "security.debian.org",
-    "github.com",  # GitHub advisories and release notes
 }
+
+# GitHub URL path prefixes that indicate a real advisory or release — not issues/PRs/wikis
+_GITHUB_ADVISORY_PATHS = (
+    "/security/advisories/",   # GHSA advisories
+    "/releases/",              # release pages
+    "/releases/tag/",          # specific release tags
+    "github.com/advisories/",  # global advisory database
+)
 
 
 def detect_patch(cve: CVERecord) -> PatchInfo:
@@ -53,14 +60,23 @@ def detect_patch(cve: CVERecord) -> PatchInfo:
         elif any(host in url_lower for host in VENDOR_ADVISORY_HOSTS):
             if not vendor_advisory_url:
                 vendor_advisory_url = ref.url
+        # GitHub: only advisory/release paths count, not issues, PRs, wikis, or PoC repos
+        elif "github.com" in url_lower and any(p in url_lower for p in _GITHUB_ADVISORY_PATHS):
+            patch_urls.append(ref.url)
+            if not vendor_advisory_url:
+                vendor_advisory_url = ref.url
 
-    # ── 2. Derive fixed_versions from CPE version_end_excluding ─────────
+    # ── 2. Derive fixed_versions from CPE version_end_excluding (NVD) ──
     fixed_versions: set[str] = set()
     for match in cve.cpe_matches:
         if match.version_end_excluding:
             fixed_versions.add(match.version_end_excluding)
 
-    # ── 3. Decision: patch available if we have any signal ─────────────
+    # ── 3. OSV fixed versions from affected ranges ───────────────────
+    for fv in cve.fixed_versions_raw:
+        fixed_versions.add(fv)
+
+    # ── 4. Decision: patch available if we have any signal ─────────────
     info.patch_urls = patch_urls
     info.vendor_advisory_url = vendor_advisory_url
     info.fixed_versions = sorted(fixed_versions)

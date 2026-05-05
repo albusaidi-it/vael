@@ -3,10 +3,10 @@ VAEL – Stage 2 / EPSS Fetcher
 Exploit Prediction Scoring System from FIRST.org
 
 Strategy:
-  - Daily CSV feed (~200k CVEs) is downloaded ONCE and cached locally
-  - All lookups are in-memory O(1) dict operations
-  - Cache refreshed automatically if older than 24h
-  - Falls back to REST API for single-CVE lookup if cache unavailable
+  - Daily CSV feed (~200 k CVEs) is downloaded once and imported into SQLite.
+  - Lookups are indexed SQL queries — no loading 200 k rows into RAM.
+  - Feed is refreshed automatically when older than 24 h.
+  - Falls back to REST API for single-CVE lookup if the feed is unavailable.
 
 Feed URL: https://epss.cyentia.com/epss_scores-current.csv.gz
 API URL:  https://api.first.org/data/v1/epss?cve={id}
@@ -16,161 +16,135 @@ from __future__ import annotations
 
 import csv
 import gzip
+import io
 import logging
-import os
-from datetime import datetime, date, timedelta
-from pathlib import Path
+from datetime import date
 from typing import Optional
-import httpx
 
+from core import http_client
+from core import cache as _db
 from schemas.stage2 import EPSSEntry
 
 logger = logging.getLogger(__name__)
 
-EPSS_CSV_URL = "https://epss.cyentia.com/epss_scores-current.csv.gz"
-EPSS_API_URL = "https://api.first.org/data/v1/epss"
-DEFAULT_CACHE_DIR = Path(os.environ.get("VAEL_CACHE_DIR", "./feeds"))
-CACHE_TTL = timedelta(hours=24)
+EPSS_CSV_URL  = "https://epss.cyentia.com/epss_scores-current.csv.gz"
+EPSS_API_URL  = "https://api.first.org/data/v1/epss"
+_FEED_NAME    = "epss"
+_TTL_SECONDS  = 24 * 3600
 
 
-class EPSSCache:
-    """In-memory EPSS score cache, backed by daily CSV download."""
-
-    def __init__(self, cache_dir: Optional[Path] = None):
-        self.cache_dir = cache_dir or DEFAULT_CACHE_DIR
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.cache_file = self.cache_dir / "epss_scores.csv"
-        self._data: dict[str, EPSSEntry] = {}
-        self._loaded = False
-        self._score_date: Optional[date] = None
-
-    def _cache_is_stale(self) -> bool:
-        if not self.cache_file.exists():
-            return True
-        mtime = datetime.fromtimestamp(self.cache_file.stat().st_mtime)
-        return (datetime.now() - mtime) > CACHE_TTL
-
-    def _download_csv(self) -> bool:
-        logger.info("Downloading EPSS feed from %s", EPSS_CSV_URL)
-        try:
-            with httpx.Client(timeout=60, follow_redirects=True) as client:
-                resp = client.get(EPSS_CSV_URL)
-                resp.raise_for_status()
-            decompressed = gzip.decompress(resp.content).decode("utf-8")
-            self.cache_file.write_text(decompressed, encoding="utf-8")
-            logger.info("EPSS feed cached: %d bytes", len(decompressed))
-            return True
-        except Exception as e:
-            logger.error("Failed to download EPSS feed: %s", e)
-            return False
-
-    def _parse_csv(self) -> None:
-        """Load cached CSV into memory. Format:
-           line 1: #model_version:... ,score_date:YYYY-MM-DDTHH:MM:SS+00:00
-           line 2: cve,epss,percentile
-           line 3+: data"""
-        if not self.cache_file.exists():
-            return
-        try:
-            with self.cache_file.open("r", encoding="utf-8") as f:
-                score_date = None
-                data_lines = []
-                for line in f:
-                    if line.startswith("#"):
-                        if "score_date:" in line:
-                            date_str = line.split("score_date:")[-1].strip().split("T")[0]
-                            try:
-                                score_date = date.fromisoformat(date_str)
-                            except ValueError:
-                                pass
-                    else:
-                        data_lines.append(line)
-
-                self._score_date = score_date
-                reader = csv.DictReader(data_lines)
-                count = 0
-                for row in reader:
-                    try:
-                        cve_id = row.get("cve", "").strip().upper()
-                        if not cve_id:
-                            continue
-                        self._data[cve_id] = EPSSEntry(
-                            cve_id=cve_id,
-                            epss=float(row.get("epss", 0)),
-                            percentile=float(row.get("percentile", 0)),
-                            score_date=score_date,
-                        )
-                        count += 1
-                    except (ValueError, KeyError):
-                        continue
-                logger.info("Loaded %d EPSS entries (score_date=%s)", count, score_date)
-        except Exception as e:
-            logger.error("Failed to parse EPSS CSV: %s", e)
-
-    def ensure_loaded(self, allow_download: bool = True) -> None:
-        if self._loaded and self._data:
-            return
-        if self._cache_is_stale() and allow_download:
-            self._download_csv()
-        self._parse_csv()
-        self._loaded = True
-
-    def get(self, cve_id: str) -> Optional[EPSSEntry]:
-        self.ensure_loaded()
-        return self._data.get(cve_id.upper())
-
-    def get_many(self, cve_ids: list[str]) -> dict[str, Optional[EPSSEntry]]:
-        self.ensure_loaded()
-        return {cid: self._data.get(cid.upper()) for cid in cve_ids}
-
-    def size(self) -> int:
-        return len(self._data)
-
-
-def fetch_epss_api(cve_id: str) -> Optional[EPSSEntry]:
-    """Fallback single-CVE lookup via FIRST.org REST API."""
+def _refresh(allow_download: bool = True) -> bool:
+    """Download the EPSS CSV and import it into SQLite. Returns True on success."""
+    if not allow_download:
+        return False
+    logger.info("Downloading EPSS feed")
     try:
-        with httpx.Client(timeout=15) as client:
-            resp = client.get(EPSS_API_URL, params={"cve": cve_id})
-            resp.raise_for_status()
-            data = resp.json().get("data", [])
-            if not data:
-                return None
-            entry = data[0]
-            return EPSSEntry(
-                cve_id=entry.get("cve", cve_id),
-                epss=float(entry.get("epss", 0)),
-                percentile=float(entry.get("percentile", 0)),
-                score_date=date.fromisoformat(entry["date"]) if entry.get("date") else None,
-            )
+        resp = http_client.api.get(EPSS_CSV_URL, timeout=60)
+        resp.raise_for_status()
+        text = gzip.decompress(resp.content).decode("utf-8")
+    except Exception as e:
+        logger.error("EPSS download failed: %s", e)
+        return False
+
+    rows: list[tuple] = []
+    score_date: Optional[str] = None
+
+    for line in text.splitlines():
+        if line.startswith("#"):
+            if "score_date:" in line:
+                score_date = line.split("score_date:")[-1].strip().split("T")[0]
+            continue
+        break  # header line is next — hand off to csv reader
+
+    reader = csv.DictReader(io.StringIO(text.lstrip("#\n")))
+    for row in reader:
+        cve_id = row.get("cve", "").strip().upper()
+        if not cve_id:
+            continue
+        try:
+            rows.append((
+                cve_id,
+                float(row.get("epss", 0)),
+                float(row.get("percentile", 0)),
+                score_date,
+            ))
+        except ValueError:
+            continue
+
+    if not rows:
+        logger.warning("EPSS feed parsed 0 rows — keeping existing data")
+        return False
+
+    _db.epss_upsert_batch(rows)
+    _db.feed_mark_updated(_FEED_NAME, len(rows), {"score_date": score_date})
+    logger.info("EPSS feed imported: %d rows (score_date=%s)", len(rows), score_date)
+    return True
+
+
+def _ensure_current(allow_network: bool = True) -> None:
+    if _db.feed_is_stale(_FEED_NAME, _TTL_SECONDS):
+        _refresh(allow_download=allow_network)
+
+
+def get_epss_score_date() -> Optional[date]:
+    """Return the date of the currently stored EPSS feed, or None."""
+    meta = _db.feed_get_meta(_FEED_NAME)
+    raw = meta.get("score_date")
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def _api_fallback(cve_id: str) -> Optional[EPSSEntry]:
+    """Single-CVE lookup via FIRST.org REST API (used when feed is empty)."""
+    try:
+        resp = http_client.api.get(EPSS_API_URL, params={"cve": cve_id}, timeout=15)
+        resp.raise_for_status()
+        data = resp.json().get("data", [])
+        if not data:
+            return None
+        entry = data[0]
+        return EPSSEntry(
+            cve_id=entry.get("cve", cve_id),
+            epss=float(entry.get("epss", 0)),
+            percentile=float(entry.get("percentile", 0)),
+            score_date=date.fromisoformat(entry["date"]) if entry.get("date") else None,
+        )
     except Exception as e:
         logger.warning("EPSS API fallback failed for %s: %s", cve_id, e)
         return None
 
 
-_cache_singleton: Optional[EPSSCache] = None
-
-
-def get_epss_cache() -> EPSSCache:
-    global _cache_singleton
-    if _cache_singleton is None:
-        _cache_singleton = EPSSCache()
-    return _cache_singleton
-
-
 def lookup_epss(cve_ids: list[str], allow_network: bool = True) -> dict[str, Optional[EPSSEntry]]:
-    """Lookup EPSS entries for a list of CVEs. Uses cache + API fallback."""
-    cache = get_epss_cache()
-    try:
-        cache.ensure_loaded(allow_download=allow_network)
-    except Exception as e:
-        logger.warning("EPSS cache load failed: %s", e)
+    """
+    Lookup EPSS scores for a list of CVE IDs.
+    Refreshes the feed from FIRST.org when stale (>24 h).
+    Falls back to the REST API for any CVEs still missing after the feed lookup.
+    """
+    _ensure_current(allow_network)
 
-    results = cache.get_many(cve_ids)
+    raw = _db.epss_lookup_many(cve_ids)
+    results: dict[str, Optional[EPSSEntry]] = {}
+    missing: list[str] = []
+
+    for cve_id, row in raw.items():
+        if row:
+            sd = row.get("score_date")
+            results[cve_id] = EPSSEntry(
+                cve_id=row["cve_id"],
+                epss=row["epss"],
+                percentile=row["percentile"],
+                score_date=date.fromisoformat(sd) if sd else None,
+            )
+        else:
+            results[cve_id] = None
+            missing.append(cve_id)
 
     if allow_network:
-        missing = [cid for cid, v in results.items() if v is None]
-        for cid in missing[:10]:
-            results[cid] = fetch_epss_api(cid)
+        for cve_id in missing[:10]:
+            results[cve_id] = _api_fallback(cve_id)
 
     return results

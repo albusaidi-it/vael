@@ -29,6 +29,10 @@ from schemas.stage3 import (
 from core.github_harvester import search_github
 from core.exploitdb_harvester import search_exploitdb
 from core.nuclei_harvester import search_nuclei
+from core.packet_storm_harvester import search_packet_storm
+from core.metasploit_harvester import search_metasploit
+from core.intl_harvester import run_intl_harvest
+from core.pastebin_harvester import search_pastebin
 
 logger = logging.getLogger(__name__)
 
@@ -81,41 +85,58 @@ def harvest_cve(
     target_version: str,
     github_token: Optional[str],
     allow_network: bool,
-    skip_github: bool = False,
-    skip_edb: bool = False,
-    skip_nuclei: bool = False,
+    skip_github:       bool = False,
+    skip_edb:          bool = False,
+    skip_nuclei:       bool = False,
+    skip_packet_storm: bool = False,
+    skip_metasploit:   bool = False,
+    skip_intl:         bool = False,
+    skip_pastebin:     bool = False,
 ) -> tuple[CVEPoCBundle, list[str]]:
-    """Run all harvesters for a single CVE."""
+    """Run all harvesters for a single CVE in parallel."""
     bundle = CVEPoCBundle(cve_id=cve_id)
     errors: list[str] = []
     all_pocs: list[PoCRecord] = []
 
-    # Run harvesters sequentially for rate-limit safety.
-    # (Could parallelize by source; GitHub is the rate-limit bottleneck.)
+    tasks: dict[str, object] = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        if allow_network and not skip_github:
+            tasks["github"] = pool.submit(
+                search_github, cve_id, target_version, github_token=github_token
+            )
+        if not skip_edb:
+            tasks["edb"] = pool.submit(
+                search_exploitdb, cve_id, target_version, allow_network=allow_network
+            )
+        if allow_network and not skip_nuclei:
+            tasks["nuclei"] = pool.submit(
+                search_nuclei, cve_id, target_version, allow_network=allow_network
+            )
+        if allow_network and not skip_packet_storm:
+            tasks["packet_storm"] = pool.submit(
+                search_packet_storm, cve_id, target_version, allow_network=allow_network
+            )
+        if allow_network and not skip_metasploit:
+            tasks["metasploit"] = pool.submit(
+                search_metasploit, cve_id, target_version,
+                github_token=github_token, allow_network=allow_network,
+            )
+        if allow_network and not skip_intl:
+            tasks["intl"] = pool.submit(
+                run_intl_harvest, cve_id, target_version, allow_network=allow_network
+            )
+        if allow_network and not skip_pastebin:
+            tasks["pastebin"] = pool.submit(
+                search_pastebin, cve_id, target_version, allow_network=allow_network
+            )
 
-    if allow_network and not skip_github:
-        try:
-            pocs, errs = search_github(cve_id, target_version, github_token=github_token)
-            all_pocs.extend(pocs)
-            errors.extend(errs)
-        except Exception as e:
-            errors.append(f"GitHub harvest failed for {cve_id}: {e}")
-
-    if not skip_edb:
-        try:
-            pocs, errs = search_exploitdb(cve_id, target_version, allow_network=allow_network)
-            all_pocs.extend(pocs)
-            errors.extend(errs)
-        except Exception as e:
-            errors.append(f"EDB harvest failed for {cve_id}: {e}")
-
-    if allow_network and not skip_nuclei:
-        try:
-            pocs, errs = search_nuclei(cve_id, target_version, allow_network=allow_network)
-            all_pocs.extend(pocs)
-            errors.extend(errs)
-        except Exception as e:
-            errors.append(f"Nuclei harvest failed for {cve_id}: {e}")
+        for name, fut in tasks.items():
+            try:
+                pocs, errs = fut.result()
+                all_pocs.extend(pocs)
+                errors.extend(errs)
+            except Exception as e:
+                errors.append(f"{name} harvest failed for {cve_id}: {e}")
 
     bundle.pocs = _sort_pocs(_deduplicate(all_pocs))
     bundle.compute_aggregate()
@@ -183,12 +204,16 @@ def update_stage2_maturity(
 def run_stage3(
     stage2: Stage2Result,
     github_token: Optional[str] = None,
-    top_n_cves: int = 5,
+    top_n_cves: int = 10,
     allow_network: bool = True,
     update_stage2: bool = True,
-    skip_github: bool = False,
-    skip_edb: bool = False,
-    skip_nuclei: bool = False,
+    skip_github:       bool = False,
+    skip_edb:          bool = False,
+    skip_nuclei:       bool = False,
+    skip_packet_storm: bool = False,
+    skip_metasploit:   bool = False,
+    skip_intl:         bool = False,
+    skip_pastebin:     bool = False,
 ) -> Stage3Result:
     """
     Harvest public exploits for the top-N priority CVEs from Stage 2.
@@ -219,25 +244,78 @@ def run_stage3(
         logger.info("No CVEs to harvest for")
         return result
 
-    sources: set[str] = set()
+    # Track every source that was attempted, regardless of whether it returned results.
+    # This lets the UI show "PASTEBIN searched — 0 results" rather than silently omitting it.
+    attempted_sources: set[str] = set()
+    if allow_network and not skip_github:       attempted_sources.add("GITHUB")
+    if not skip_edb:                            attempted_sources.add("EXPLOIT_DB")
+    if allow_network and not skip_nuclei:       attempted_sources.add("NUCLEI")
+    if allow_network and not skip_packet_storm: attempted_sources.add("PACKET_STORM")
+    if allow_network and not skip_metasploit:   attempted_sources.add("METASPLOIT")
+    if allow_network and not skip_intl:         attempted_sources.update({"GITEE", "SEEBUG"})
+    if allow_network and not skip_pastebin:     attempted_sources.add("PASTEBIN")
+    sources_with_results: set[str] = set()
 
-    for cve, enrichment in top:
-        bundle, errors = harvest_cve(
-            cve_id=cve.cve_id,
-            target_version=stage2.version,
-            github_token=github_token,
-            allow_network=allow_network,
-            skip_github=skip_github,
-            skip_edb=skip_edb,
-            skip_nuclei=skip_nuclei,
-        )
-        result.bundles.append(bundle)
-        result.errors.extend(errors)
-        for p in bundle.pocs:
-            sources.add(p.source.value)
+    # Process up to 2 CVEs concurrently — respects GitHub rate limits while
+    # still giving a meaningful speedup when top_n > 1.
+    max_workers = min(2, len(top))
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        cve_futures = {
+            pool.submit(
+                harvest_cve,
+                cve_id=cve.cve_id,
+                target_version=stage2.version,
+                github_token=github_token,
+                allow_network=allow_network,
+                skip_github=skip_github,
+                skip_edb=skip_edb,
+                skip_nuclei=skip_nuclei,
+                skip_packet_storm=skip_packet_storm,
+                skip_metasploit=skip_metasploit,
+                skip_intl=skip_intl,
+                skip_pastebin=skip_pastebin,
+            ): cve
+            for cve, _enrichment in top
+        }
+        for fut in as_completed(cve_futures):
+            try:
+                bundle, errs = fut.result()
+                result.bundles.append(bundle)
+                result.errors.extend(errs)
+                for p in bundle.pocs:
+                    sources_with_results.add(p.source.value)
+            except Exception as e:
+                result.errors.append(f"CVE harvest failed: {e}")
 
-    result.sources_queried = sorted(sources)
+    # Re-order bundles to match the VEP priority order from Stage 2 so the
+    # AI prompt and web UI always present CVEs highest-priority first.
+    priority_order = {cve.cve_id: i for i, (cve, _) in enumerate(top)}
+    result.bundles.sort(key=lambda b: priority_order.get(b.cve_id, 999))
+
+    # sources_queried = all attempted; sources_with_results is a subset when needed
+    result.sources_queried = sorted(attempted_sources)
     result.compute_summary()
+
+    # Surface rate limit warnings and strip them from errors
+    from core.rate_limiter import rate_limiter
+    from core.config import settings as _cfg
+    rl_warnings = rate_limiter.collect_warnings(
+        ["github", "github_search", "packet_storm", "gitee", "seebug", "yandex", "baidu", "naver", "pastebin"],
+        {
+            "github":        bool(_cfg.github_token),
+            "github_search": bool(_cfg.github_token),
+            "packet_storm":  False,
+            "gitee":         False,
+            "seebug":        False,
+            "yandex":        False,
+            "baidu":         False,
+            "naver":         False,
+            "pastebin":      False,
+        },
+    )
+    rl_warnings += [e for e in result.errors if e.startswith("[RateLimit]")]
+    result.errors = [e for e in result.errors if not e.startswith("[RateLimit]")]
+    result.rate_limit_warnings = list(dict.fromkeys(rl_warnings))
 
     if update_stage2:
         update_stage2_maturity(stage2, result)

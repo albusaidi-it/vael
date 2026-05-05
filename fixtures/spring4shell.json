@@ -1,0 +1,351 @@
+{
+  "key": "spring-framework:5.3.17",
+  "stage1": {
+    "software": "spring-framework",
+    "version": "5.3.17",
+    "cpe_string": "cpe:2.3:a:vmware:spring_framework:5.3.17:*:*:*:*:*:*:*",
+    "query_ts": "2024-06-01T10:00:00",
+    "cves": [
+      {
+        "cve_id": "CVE-2022-22965",
+        "source": "NVD",
+        "description": "A Spring MVC or Spring WebFlux application running on JDK 9+ may be vulnerable to remote code execution (RCE) via data binding. The specific exploit requires the application to run on Tomcat as a WAR deployment. If the application is deployed as a Spring Boot executable jar, i.e. the default, it is not vulnerable to the exploit. However, the nature of the vulnerability is more general, and there may be other ways to exploit it.",
+        "published": "2022-03-31T06:15:08",
+        "last_modified": "2023-04-27T17:13:44",
+        "cvss_v3": {
+          "score": 9.8,
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "severity": "CRITICAL",
+          "attack_vector": "NETWORK",
+          "attack_complexity": "LOW",
+          "privileges_required": "NONE",
+          "user_interaction": "NONE",
+          "confidentiality_impact": "HIGH",
+          "integrity_impact": "HIGH",
+          "availability_impact": "HIGH"
+        },
+        "cvss_v2": {
+          "score": 7.5,
+          "vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+          "severity": "HIGH"
+        },
+        "cwes": [
+          {
+            "cwe_id": "CWE-94",
+            "name": "Improper Control of Generation of Code ('Code Injection')",
+            "description": "The software constructs all or part of a code segment using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements."
+          }
+        ],
+        "references": [
+          {
+            "url": "https://spring.io/security/cve-2022-22965",
+            "source": "VMWARE",
+            "tags": ["Vendor Advisory"]
+          },
+          {
+            "url": "https://tanzu.vmware.com/security/cve-2022-22965",
+            "source": "VMWARE",
+            "tags": ["Vendor Advisory"]
+          }
+        ],
+        "cpe_matches": [
+          {
+            "cpe23": "cpe:2.3:a:vmware:spring_framework:*:*:*:*:*:*:*:*",
+            "version_start_including": "5.3.0",
+            "version_end_excluding": "5.3.18",
+            "vulnerable": true
+          },
+          {
+            "cpe23": "cpe:2.3:a:vmware:spring_framework:*:*:*:*:*:*:*:*",
+            "version_start_including": "5.2.0",
+            "version_end_excluding": "5.2.20",
+            "vulnerable": true
+          }
+        ],
+        "affected_versions_raw": ["5.3.0 through 5.3.17", "5.2.0 through 5.2.19"],
+        "version_matched": true
+      },
+      {
+        "cve_id": "CVE-2022-22950",
+        "source": "NVD",
+        "description": "In Spring Framework versions 5.3.0 - 5.3.16 and older unsupported versions, it is possible for a user to provide a specially crafted SpEL expression that may cause a denial of service condition.",
+        "published": "2022-04-01T23:15:10",
+        "last_modified": "2022-11-22T17:25:18",
+        "cvss_v3": {
+          "score": 6.5,
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+          "severity": "MEDIUM",
+          "attack_vector": "NETWORK",
+          "attack_complexity": "LOW",
+          "privileges_required": "LOW",
+          "user_interaction": "NONE",
+          "confidentiality_impact": "NONE",
+          "integrity_impact": "NONE",
+          "availability_impact": "HIGH"
+        },
+        "cvss_v2": null,
+        "cwes": [
+          {
+            "cwe_id": "CWE-770",
+            "name": "Allocation of Resources Without Limits or Throttling",
+            "description": null
+          }
+        ],
+        "references": [
+          {
+            "url": "https://tanzu.vmware.com/security/cve-2022-22950",
+            "source": "VMWARE",
+            "tags": ["Vendor Advisory"]
+          }
+        ],
+        "cpe_matches": [],
+        "affected_versions_raw": ["5.3.0 through 5.3.16"],
+        "version_matched": true
+      },
+      {
+        "cve_id": "CVE-2022-22970",
+        "source": "NVD",
+        "description": "In Spring Framework versions 5.3.0 - 5.3.18, 5.2.0 - 5.2.20, and older unsupported versions, applications that handle file uploads are potentially vulnerable to DoS attack if they rely on data binding to set a MultipartFile or javax.servlet.Part to a field in a model object.",
+        "published": "2022-05-12T20:15:09",
+        "last_modified": "2022-11-22T19:44:01",
+        "cvss_v3": {
+          "score": 5.3,
+          "vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:N/A:H",
+          "severity": "MEDIUM",
+          "attack_vector": "NETWORK",
+          "attack_complexity": "HIGH",
+          "privileges_required": "LOW",
+          "user_interaction": "NONE",
+          "confidentiality_impact": "NONE",
+          "integrity_impact": "NONE",
+          "availability_impact": "HIGH"
+        },
+        "cvss_v2": null,
+        "cwes": [
+          {
+            "cwe_id": "CWE-770",
+            "name": "Allocation of Resources Without Limits or Throttling",
+            "description": null
+          }
+        ],
+        "references": [],
+        "cpe_matches": [],
+        "affected_versions_raw": ["5.3.0 through 5.3.18"],
+        "version_matched": true
+      }
+    ],
+    "misconfig_flags": [],
+    "total_cves": 3,
+    "critical_count": 1,
+    "high_count": 0,
+    "version_matched_count": 3,
+    "sources_queried": ["NVD", "OSV"],
+    "errors": []
+  },
+  "stage2": {
+    "software": "spring-framework",
+    "version": "5.3.17",
+    "query_ts": "2024-06-01T10:00:05",
+    "stage1_cves": [],
+    "enrichments": [
+      {
+        "cve_id": "CVE-2022-22965",
+        "epss": {
+          "cve_id": "CVE-2022-22965",
+          "epss": 0.97391,
+          "percentile": 0.99994,
+          "score_date": "2024-06-01"
+        },
+        "in_kev": true,
+        "kev_entry": {
+          "cve_id": "CVE-2022-22965",
+          "vendor_project": "VMware",
+          "product": "Spring Framework",
+          "vulnerability_name": "Spring MVC Framework Path Variable Remote Code Execution Vulnerability",
+          "date_added": "2022-04-04",
+          "short_description": "Spring MVC framework contains an RCE vulnerability that allows an attacker to execute arbitrary code via data binding on JDK 9+.",
+          "required_action": "Apply updates per vendor instructions.",
+          "due_date": "2022-04-25",
+          "known_ransomware_campaign_use": "Unknown",
+          "notes": "Also known as Spring4Shell."
+        },
+        "exploit_maturity": "WEAPONIZED",
+        "patch": {
+          "patch_available": true,
+          "fixed_versions": ["5.3.18", "5.2.20"],
+          "vendor_advisory_url": "https://spring.io/security/cve-2022-22965",
+          "patch_urls": []
+        },
+        "vep_tier": "T0_PATCH_NOW",
+        "vep_score": 96.8,
+        "reasoning": [
+          "CISA KEV: exploited in the wild (added 2022-04-04)",
+          "EPSS 97.4th percentile (extremely high)",
+          "CVSS 9.8 — critical severity, no auth required",
+          "Version 5.3.17 is directly affected",
+          "Weaponized exploits and Nuclei templates publicly available"
+        ]
+      },
+      {
+        "cve_id": "CVE-2022-22950",
+        "epss": {
+          "cve_id": "CVE-2022-22950",
+          "epss": 0.00312,
+          "percentile": 0.65241,
+          "score_date": "2024-06-01"
+        },
+        "in_kev": false,
+        "kev_entry": null,
+        "exploit_maturity": "PROOF_OF_CONCEPT",
+        "patch": {
+          "patch_available": true,
+          "fixed_versions": ["5.3.17", "5.2.20"],
+          "vendor_advisory_url": "https://tanzu.vmware.com/security/cve-2022-22950",
+          "patch_urls": []
+        },
+        "vep_tier": "T2_MONITOR",
+        "vep_score": 22.1,
+        "reasoning": [
+          "Not in CISA KEV",
+          "EPSS 0.31% — low exploitation probability",
+          "CVSS 6.5 — medium, DoS only (no data exfiltration)",
+          "Requires authenticated user with LOW privileges"
+        ]
+      },
+      {
+        "cve_id": "CVE-2022-22970",
+        "epss": {
+          "cve_id": "CVE-2022-22970",
+          "epss": 0.00145,
+          "percentile": 0.52188,
+          "score_date": "2024-06-01"
+        },
+        "in_kev": false,
+        "kev_entry": null,
+        "exploit_maturity": "UNPROVEN",
+        "patch": {
+          "patch_available": true,
+          "fixed_versions": ["5.3.19"],
+          "vendor_advisory_url": "https://tanzu.vmware.com/security/cve-2022-22970",
+          "patch_urls": []
+        },
+        "vep_tier": "T3_DEFER",
+        "vep_score": 8.4,
+        "reasoning": [
+          "Not in CISA KEV",
+          "EPSS 0.15% — very low exploitation probability",
+          "CVSS 5.3 — medium, DoS only, high attack complexity",
+          "No known public exploits"
+        ]
+      }
+    ],
+    "kev_count": 1,
+    "high_epss_count": 1,
+    "t0_patch_now_count": 1,
+    "t1_high_count": 0,
+    "sources_queried": ["EPSS", "CISA_KEV"],
+    "errors": []
+  },
+  "stage3": {
+    "software": "spring-framework",
+    "version": "5.3.17",
+    "query_ts": "2024-06-01T10:00:12",
+    "bundles": [
+      {
+        "cve_id": "CVE-2022-22965",
+        "pocs": [
+          {
+            "cve_id": "CVE-2022-22965",
+            "source": "GITHUB",
+            "url": "https://github.com/BobTheShoplifter/Spring4Shell-POC",
+            "title": "Spring4Shell PoC — CVE-2022-22965",
+            "author": "BobTheShoplifter",
+            "published": "2022-03-30",
+            "stars": 407,
+            "forks": 122,
+            "description": "Proof of concept for Spring4Shell (CVE-2022-22965), demonstrating RCE via Spring MVC data binding on JDK 9+.",
+            "quality": "FUNCTIONAL",
+            "version_compatibility": "CONFIRMED",
+            "detected_versions": ["5.3.0 - 5.3.17", "5.2.0 - 5.2.19"],
+            "has_executable_code": true,
+            "has_readme": true,
+            "language": "python",
+            "raw_meta": {}
+          },
+          {
+            "cve_id": "CVE-2022-22965",
+            "source": "NUCLEI",
+            "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/cves/2022/CVE-2022-22965.yaml",
+            "title": "Spring4Shell RCE Detection (CVE-2022-22965)",
+            "author": "ProjectDiscovery",
+            "published": "2022-04-01",
+            "stars": null,
+            "forks": null,
+            "description": "Nuclei template for detecting Spring4Shell CVE-2022-22965 via ClassLoader manipulation check.",
+            "quality": "WEAPONIZED",
+            "version_compatibility": "LIKELY",
+            "detected_versions": [],
+            "has_executable_code": true,
+            "has_readme": false,
+            "language": "yaml",
+            "raw_meta": {}
+          },
+          {
+            "cve_id": "CVE-2022-22965",
+            "source": "EXPLOIT_DB",
+            "url": "https://www.exploit-db.com/exploits/50847",
+            "title": "Spring4Shell - Remote Code Execution (CVE-2022-22965)",
+            "author": "Craig Young",
+            "published": "2022-04-05",
+            "stars": null,
+            "forks": null,
+            "description": "Spring4Shell exploit targeting Spring MVC / Tomcat WAR deployments on JDK 9+.",
+            "quality": "FUNCTIONAL",
+            "version_compatibility": "CONFIRMED",
+            "detected_versions": ["< 5.3.18"],
+            "has_executable_code": true,
+            "has_readme": true,
+            "language": "python",
+            "raw_meta": {}
+          }
+        ],
+        "total_found": 3,
+        "best_quality": "WEAPONIZED",
+        "compatible_pocs_count": 3
+      },
+      {
+        "cve_id": "CVE-2022-22950",
+        "pocs": [],
+        "total_found": 0,
+        "best_quality": "UNKNOWN",
+        "compatible_pocs_count": 0
+      },
+      {
+        "cve_id": "CVE-2022-22970",
+        "pocs": [],
+        "total_found": 0,
+        "best_quality": "UNKNOWN",
+        "compatible_pocs_count": 0
+      }
+    ],
+    "total_pocs": 3,
+    "weaponized_count": 1,
+    "cves_with_compatible_pocs": 1,
+    "sources_queried": ["GITHUB", "EXPLOIT_DB", "NUCLEI"],
+    "errors": []
+  },
+  "verdict": {
+    "label": "PATCH NOW",
+    "recommendation": "Upgrade spring-framework to 5.3.18+ immediately — CVE-2022-22965 (Spring4Shell) is a CISA KEV-listed RCE with EPSS >97% affecting Tomcat WAR deployments on JDK 9+.",
+    "confidence": 0.97,
+    "reasoning_summary": "spring-framework 5.3.17 is critically exposed through CVE-2022-22965 (Spring4Shell), a remote code execution vulnerability with CVSS 9.8 that is actively exploited and listed in CISA's KEV catalog. The vulnerability exploits Spring MVC's data binding mechanism to manipulate ClassLoader properties via a specially crafted HTTP request.\n\nThe primary constraint is deployment context: exploitation requires the application to be deployed as a WAR on Apache Tomcat with JDK 9+, and the attacker must be able to send HTTP requests to the application. Spring Boot executable JARs are not vulnerable to the published exploits. Operators should confirm their deployment topology before determining urgency — WAR-on-Tomcat deployments are CRITICAL, JAR deployments should still patch but are not currently exposed to known exploits.\n\nCVE-2022-22950 (SpEL DoS) and CVE-2022-22970 (file upload DoS) are lower-severity findings with no active exploitation evidence. Both are addressed by the same patch as Spring4Shell.\n\nFix: upgrade to 5.3.18 or 5.2.20 to resolve all three CVEs in a single patch cycle.",
+    "key_evidence": [
+      "CVE-2022-22965: CVSS 9.8, EPSS 97.4%, CISA KEV (added 2022-04-04), Spring4Shell",
+      "3 public PoCs including Nuclei WEAPONIZED template and Exploit-DB entry",
+      "spring-framework 5.3.17 is directly version-matched",
+      "Caveat: full exploit requires Tomcat WAR + JDK 9+ (not Spring Boot JAR)",
+      "Fix available: upgrade to 5.3.18+"
+    ],
+    "used_ai": false
+  }
+}

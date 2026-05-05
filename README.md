@@ -1,90 +1,162 @@
-# VAEL – Vulnerability Analysis Engine
+# VAEL — Vulnerability Analysis Engine
 
-**v0.3.0** · Stages 1–3 complete + Gemini AI verdict layer
+**v0.4.0** · Open-source · Local-first · AI-assisted
 
-Open-source, AI-driven vulnerability analysis engine.
-Local-first · Modular · KEV-style risk decisions.
+> *Know whether to patch now or sleep soundly — in seconds, not hours.*
+
+VAEL is an automated vulnerability analysis pipeline that takes a software name and version, then delivers a prioritized, evidence-backed risk decision by correlating data from a dozen public security feeds and harvesting live exploit code from across the internet — including non-English sources.
+
+---
+
+## The Problem
+
+A typical security team faces this every week:
+
+1. A scanner flags 47 CVEs against a dependency.
+2. Someone has to manually check NVD, EPSS, CISA KEV, search GitHub for exploits, read advisories…
+3. Two hours later: *"Probably patch it, but not urgent."*
+
+That manual correlation is exactly what VAEL automates. It produces a single verdict — `PATCH NOW`, `HIGH`, `MONITOR`, or `DEFER` — with the evidence chain that justifies it.
+
+---
+
+## How It Works
+
+```
+Software + Version
+       │
+  ┌────▼────┐
+  │ Stage 1 │  CVE Discovery        ← NVD · OSV · GHSA · CWE/CIS
+  └────┬────┘
+  ┌────▼────┐
+  │ Stage 2 │  Exploitability       ← EPSS · CISA KEV · VulnCheck (APT/ransomware)
+  └────┬────┘
+  ┌────▼────┐
+  │ Stage 3 │  PoC Harvesting       ← GitHub · Exploit-DB · Metasploit · Packet Storm
+  │         │  (12 sources)         ← Nuclei · Gitee · Seebug · Naver · Yandex · Baidu
+  └────┬────┘
+  ┌────▼────┐
+  │ Stage 4 │  Internet Exposure    ← Shodan · Censys
+  └────┬────┘
+  ┌────▼────┐
+  │ Verdict │  AI Risk Decision     ← Gemini AI (deterministic fallback built-in)
+  └─────────┘
+       │
+  PATCH NOW / HIGH / MONITOR / DEFER
+```
 
 ---
 
 ## Quick Start
 
 ```bash
+git clone <repo>
+cd vael
 pip install -r requirements.txt
 
-# Export keys (all optional)
-export NVD_API_KEY=...          # NVD rate limit boost
-export GITHUB_TOKEN=...          # GitHub PoC search
-export GEMINI_API_KEY=...        # AI verdict (fallback works without)
+# Start the web UI + API
+uvicorn api.main:app --reload
+# → Open http://localhost:8000
+```
 
-# ── Stage 1: CVE mapping ──
+Or via CLI:
+
+```bash
+# Full pipeline — stages 1-3 + AI verdict
 python cli/vael.py analyze --software log4j --version 2.14.1
 
-# ── Stage 2: + exploitability (EPSS, KEV) ──
-python cli/vael.py analyze --software log4j --version 2.14.1 --stage 2
+# JSON output for integrations
+python cli/vael.py analyze --software nginx --version 1.20.0 --json
 
-# ── Stage 3: + PoC harvesting (GitHub, Exploit-DB, Nuclei) ──
-python cli/vael.py analyze --software log4j --version 2.14.1 --stage 3
-
-# ── Full pipeline: stages 1-3 + AI verdict ──
-python cli/vael.py analyze --software log4j --version 2.14.1 --stage 3 --verdict
-
-# ── JSON output for integration ──
-python cli/vael.py analyze --software log4j --version 2.14.1 --stage 3 --verdict --json
-
-# ── REST API ──
-uvicorn api.main:app --reload
-# → http://localhost:8000/docs
+# Offline mode (uses cached data only)
+python cli/vael.py analyze --software django --version 3.2.0 --offline
 ```
 
 ---
 
-## Pipeline Stages
+## Key Features
 
-### ✅ Stage 1 – Known Vulnerability Mapping
-| Source | What it provides |
-|--------|-----------------|
-| NVD API v2 | CVE details, CVSS, CPE matches |
-| OSV.dev | Open-source CVEs (PyPI, npm, Maven…) |
-| CWE (local) | Common weakness patterns per software |
-| CIS Benchmarks (local) | Hardening rule violations |
+| Feature | Details |
+|---------|---------|
+| **Multi-source CVE discovery** | NVD, OSV, GHSA — all queried in parallel, deduplicated |
+| **Real exploitability scoring** | EPSS probability + CISA KEV presence + VulnCheck APT/ransomware intel |
+| **Live PoC harvesting** | 12 sources including GitHub, Exploit-DB, Metasploit, Packet Storm |
+| **International search** | Gitee 🇨🇳, Seebug 🇨🇳, Naver 🇰🇷, Yandex 🇷🇺, Baidu 🇨🇳 with native-language queries |
+| **Internet exposure** | Shodan + Censys attack-surface estimation |
+| **AI verdict** | Gemini-powered risk decision with deterministic fallback |
+| **SBOM support** | CycloneDX, SPDX, requirements.txt — analyze whole dependency trees |
+| **Delta tracking** | Diff runs over time: new CVEs, tier upgrades, EPSS spikes, new PoCs |
+| **Rate-limit aware** | Real-time budget tracking for all APIs, warnings surfaced to UI |
+| **Web dashboard** | Live SSE-streaming results with progressive rendering |
+| **Docker-ready** | Single `docker-compose up` deployment |
 
-### ✅ Stage 2 – Real Exploitability Evaluation
-| Source | What it provides |
-|--------|-----------------|
-| EPSS CSV (FIRST.org) | Exploit probability score (0–1) |
-| CISA KEV (JSON feed) | Known-exploited-in-wild catalog |
-| Heuristic patch detector | Fixed versions + vendor advisories |
+---
 
-**Output:** VEP (Vulnerability Exploitability Priority) tier per CVE:
-- 🚨 **T0 PATCH NOW** — In KEV or EPSS > 0.7 AND version-matched
-- ⚠️ **T1 HIGH** — Score ≥ 50
-- 👁️ **T2 MONITOR** — Score ≥ 25
-- 📋 **T3 DEFER** — No exploitation evidence
+## All Zero Keys Required
 
-### ✅ Stage 3 – Public Exploit / PoC Harvesting
-| Source | What it provides |
-|--------|-----------------|
-| GitHub Search API | Community PoC repos (with fake-repo filter) |
-| Exploit-DB CSV | Curated exploit catalog |
-| Nuclei templates | Weaponized scanner templates |
+Every API key is optional. Without keys:
+- NVD is rate-limited to 5 req/30s (still works)
+- GitHub PoC search runs at 10 req/min unauthenticated
+- VulnCheck, Shodan, Censys simply skip (pipeline still completes)
+- Gemini falls back to deterministic rule-based verdict
 
-**Quality classification:**
-- **WEAPONIZED** — Metasploit, Nuclei, trusted security researchers
-- **FUNCTIONAL** — Working exploit code + stars + README
-- **CONCEPTUAL** — Describes vuln, minimal code
-- **FAKE** — Spam/empty/clickbait (filtered out)
+---
 
-### ✅ AI Reasoning Layer – Gemini
-- Takes **pre-fetched facts only** — never retrieves information
-- Produces KEV-style verdict: `PATCH NOW` / `HIGH` / `MONITOR` / `DEFER`
-- JSON-schema-enforced output with confidence score
-- **Always falls back to deterministic rule-based verdict** if Gemini unavailable
+## API
 
-### 🔜 Upcoming
-- **Stage 4** — Contextual exposure analysis (deployment profile)
-- **Stage 5** — Attack path construction (CAPEC + ATT&CK graph)
-- **Stage 6** — Full KEV-style decision aggregation
+```bash
+# SSE streaming (progressive rendering)
+GET /analyze/stream?software=log4j&version=2.14.1
+
+# Full pipeline
+POST /analyze/full
+
+# SBOM analysis
+POST /analyze/sbom   (upload CycloneDX / SPDX / requirements.txt)
+
+# Delta diff (what changed since last run)
+POST /analyze/delta
+
+# Internet exposure (Shodan + Censys)
+POST /analyze/exposure
+
+# Rate limit status
+GET /rate-limits
+
+# Demo scenarios (no network needed)
+GET /demo/log4shell
+GET /demo/spring4shell
+```
+
+Full interactive docs: `http://localhost:8000/docs`
+
+---
+
+## Configuration
+
+Copy `.env.example` to `.env` and fill in any keys you have:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Source | Benefit |
+|----------|--------|---------|
+| `NVD_API_KEY` | nvd.nist.gov | 10× rate limit (50 req/30s) |
+| `GITHUB_TOKEN` | github.com/settings/tokens | 83× rate limit (5000 req/hr) |
+| `GEMINI_API_KEY` | aistudio.google.com | Enables AI verdict |
+| `VULNCHECK_API_KEY` | vulncheck.com/register | APT + ransomware attribution |
+| `SHODAN_API_KEY` | shodan.io | Internet exposure counts |
+| `CENSYS_API_ID/SECRET` | censys.io | Exposure verification |
+
+---
+
+## Docker
+
+```bash
+docker-compose up
+# → http://localhost:8000
+```
 
 ---
 
@@ -92,60 +164,46 @@ uvicorn api.main:app --reload
 
 ```
 vael/
+├── api/main.py              # FastAPI — REST + SSE endpoints
+├── cli/vael.py              # Typer CLI
 ├── core/
-│   ├── cve_mapper.py           # Stage 1 orchestrator
-│   ├── nvd_fetcher.py          # NVD API v2 client
-│   ├── osv_fetcher.py          # OSV.dev client
-│   ├── misconfig_mapper.py     # CWE + CIS local KB
-│   ├── version_utils.py        # semver range matching
-│   ├── exploit_eval.py         # Stage 2 orchestrator
-│   ├── epss_fetcher.py         # EPSS CSV cache
-│   ├── kev_fetcher.py          # CISA KEV JSON cache
-│   ├── patch_detector.py       # Patch info extractor
-│   ├── exploit_scorer.py       # VEP scoring algorithm
-│   ├── poc_harvester.py        # Stage 3 orchestrator
-│   ├── github_harvester.py     # GitHub PoC search + classifier
-│   ├── exploitdb_harvester.py  # Exploit-DB CSV lookup
-│   ├── nuclei_harvester.py     # Nuclei template checker
-│   └── ai_reasoner.py          # Gemini + deterministic fallback
-├── schemas/
-│   ├── stage1.py               # CVE + misconfig models
-│   ├── stage2.py               # Exploitability + VEP models
-│   └── stage3.py               # PoC + quality models
-├── api/main.py                  # FastAPI (4 endpoints)
-├── cli/vael.py                  # Typer CLI
-├── tests/
-│   ├── test_stage1.py          # 14 tests
-│   ├── test_stage2.py          # 16 tests
-│   └── test_stage3.py          # 24 tests
-└── requirements.txt
+│   ├── cve_mapper.py        # Stage 1 orchestrator
+│   ├── exploit_eval.py      # Stage 2 orchestrator
+│   ├── poc_harvester.py     # Stage 3 orchestrator
+│   ├── exposure_checker.py  # Stage 4 (Shodan/Censys)
+│   ├── ai_reasoner.py       # Gemini + deterministic fallback
+│   ├── intl_harvester.py    # International sources (Gitee/Seebug/Naver/Yandex/Baidu)
+│   ├── rate_limiter.py      # Central API budget tracker
+│   ├── cache.py             # SQLite cache (WAL, zlib-compressed)
+│   ├── delta_tracker.py     # Baseline snapshots + diff
+│   └── sbom_parser.py       # CycloneDX / SPDX / requirements.txt
+├── schemas/                 # Pydantic models for every stage
+├── wiki/                    # Detailed documentation
+├── web/index.html           # Single-file dashboard UI
+├── fixtures/                # Offline demo data
+└── docker-compose.yml
 ```
 
 ---
 
-## Design Principles
+## Wiki
 
-1. **Local-first** — All heavy feeds (NVD JSON, EPSS CSV, KEV JSON, Exploit-DB CSV) cached locally; 24–72h TTL
-2. **Modular** — Every stage works standalone; each harvester is independently disableable
-3. **LLM as reasoner, never retriever** — Gemini receives pre-fetched structured data; prompt explicitly forbids invention
-4. **Deterministic fallback** — Pipeline works end-to-end without Gemini; AI is an enhancement
-5. **Rate-limit aware** — NVD, GitHub, EDB all have retry/backoff logic
-6. **Structured output** — Every stage output is a Pydantic model; JSON mode preserves full data
+Detailed documentation lives in [`wiki/`](wiki/):
+
+| Page | Contents |
+|------|----------|
+| [Overview](wiki/01-overview.md) | What VAEL is, the problem it solves, what the verdicts mean |
+| [Architecture](wiki/02-architecture.md) | How the pipeline works — plain English + technical detail |
+| [Installation](wiki/03-installation.md) | Setup for dev, production, Docker |
+| [Usage](wiki/04-usage.md) | Web UI, CLI, API endpoints, interpreting results |
+| [Pipeline Stages](wiki/05-stages.md) | Each stage in technical depth |
+| [Data Sources](wiki/06-sources.md) | Every source, what it provides, rate limits |
+| [API Keys](wiki/07-api-keys.md) | How to get and configure each key |
+| [Contributing](wiki/08-contributing.md) | How to add new sources or stages |
+| [Glossary](wiki/09-glossary.md) | Plain-English definitions for every term |
 
 ---
 
-## Testing
+## License
 
-```bash
-# Offline unit tests (no network)
-VAEL_SKIP_INTEGRATION=1 python tests/test_stage1.py
-VAEL_SKIP_INTEGRATION=1 python tests/test_stage2.py
-VAEL_SKIP_INTEGRATION=1 python tests/test_stage3.py
-
-# Full test suite (requires internet for NVD/OSV/EPSS/KEV/GitHub)
-python tests/test_stage1.py
-python tests/test_stage2.py
-python tests/test_stage3.py
-```
-
-Test coverage: **54 tests total**, of which **48 are offline** (pure logic) and **6 are integration** (live feeds).
+MIT

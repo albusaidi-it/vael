@@ -71,6 +71,7 @@ class CVERecord(BaseModel):
     references: list[Reference] = Field(default_factory=list)
     cpe_matches: list[CPEMatch] = Field(default_factory=list)
     affected_versions_raw: list[str] = Field(default_factory=list)
+    fixed_versions_raw: list[str] = Field(default_factory=list)   # from OSV fixed events
     version_matched: bool = False                # True if input version is confirmed affected
 
 
@@ -101,6 +102,7 @@ class Stage1Result(BaseModel):
     version_matched_count: int = 0              # CVEs confirmed for this exact version
     sources_queried: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+    rate_limit_warnings: list[str] = Field(default_factory=list)
 
     def compute_summary(self) -> None:
         self.total_cves = len(self.cves)

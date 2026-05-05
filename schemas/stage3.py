@@ -23,6 +23,9 @@ class PoCSource(str, Enum):
     PACKET_STORM = "PACKET_STORM"
     NUCLEI       = "NUCLEI"
     METASPLOIT   = "METASPLOIT"
+    GITEE        = "GITEE"    # Chinese GitHub alternative (gitee.com)
+    SEEBUG       = "SEEBUG"   # Chinese CVE/PoC database (seebug.org)
+    PASTEBIN     = "PASTEBIN" # pastebin.com public pastes
     OTHER        = "OTHER"
 
 
@@ -110,6 +113,7 @@ class Stage3Result(BaseModel):
     cves_with_compatible_pocs: int = 0
     sources_queried: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+    rate_limit_warnings: list[str] = Field(default_factory=list)
 
     def compute_summary(self) -> None:
         self.total_pocs = sum(len(b.pocs) for b in self.bundles)
