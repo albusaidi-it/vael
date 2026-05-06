@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from schemas.stage2 import Stage2Result, VEPTier, ExploitMaturity
@@ -47,7 +47,7 @@ def save_snapshot(stage2: Stage2Result, stage3: Optional[Stage3Result] = None) -
     data = {
         "software":    stage2.software,
         "version":     stage2.version,
-        "saved_at":    datetime.utcnow().isoformat(),
+        "saved_at":    datetime.now(timezone.utc).isoformat(),
         "stage2":      stage2.model_dump(mode="json"),
         "stage3":      stage3.model_dump(mode="json") if stage3 else None,
     }
@@ -74,7 +74,7 @@ def diff_snapshots(
     report = DeltaReport(
         software=software,
         version=version,
-        current_ts=datetime.utcnow(),
+        current_ts=datetime.now(timezone.utc),
     )
 
     snapshot = load_snapshot(software, version)

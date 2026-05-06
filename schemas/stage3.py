@@ -8,7 +8,7 @@ compatibility via static analysis.
 """
 
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -102,7 +102,7 @@ class Stage3Result(BaseModel):
     """Top-level output of Stage 3."""
     software: str
     version: str
-    query_ts: datetime = Field(default_factory=datetime.utcnow)
+    query_ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Per-CVE PoC bundles
     bundles: list[CVEPoCBundle] = Field(default_factory=list)

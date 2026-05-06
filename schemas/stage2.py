@@ -11,7 +11,7 @@ Consumes Stage1Result and enriches each CVE with:
 """
 
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -93,7 +93,7 @@ class Stage2Result(BaseModel):
     """Top-level output of Stage 2."""
     software: str
     version: str
-    query_ts: datetime = Field(default_factory=datetime.utcnow)
+    query_ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     stage1_cves: list[CVERecord] = Field(default_factory=list)
     enrichments: list[ExploitabilityEnrichment] = Field(default_factory=list)
 

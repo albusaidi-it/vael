@@ -7,7 +7,7 @@ run at different points in time.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -55,7 +55,7 @@ class DeltaReport(BaseModel):
     version: str
 
     baseline_ts: Optional[datetime] = None
-    current_ts: datetime = Field(default_factory=datetime.utcnow)
+    current_ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     changes: list[CVEDelta] = Field(default_factory=list)
 

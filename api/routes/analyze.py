@@ -219,6 +219,80 @@ def analyze_full(req: FullAnalysisRequest):
         raise HTTPException(500, detail=str(e))
 
 
+@router.post("/analyze/report")
+def analyze_report(req: FullAnalysisRequest, fmt: str = Query("md", description="Output format: md or json")):
+    """
+    Run the full pipeline and return results as a downloadable report.
+    fmt=md  → Markdown file (default)
+    fmt=json → JSON file
+    """
+    _validate(req)
+
+    # Reuse pipeline cache if available
+    _use_cache = not req.offline and not req.skip_nvd and not req.skip_osv
+    _p_key = (
+        _cache.pipeline_cache_key(
+            req.software.strip(), req.version.strip(),
+            req.ecosystem or "", req.deterministic, req.top_n,
+        )
+        if _use_cache else None
+    )
+
+    result: Optional[FullAnalysisResponse] = None
+    if _p_key:
+        _hit = _cache.get(_p_key)
+        if _hit:
+            try:
+                result = FullAnalysisResponse.model_validate(_hit)
+                logger.debug("Report: pipeline cache HIT for %s %s", req.software, req.version)
+            except Exception:
+                pass
+
+    if result is None:
+        try:
+            s1 = run_stage1(
+                software=req.software.strip(), version=req.version.strip(),
+                cpe_string=req.cpe_string, osv_ecosystem=req.ecosystem,
+                max_results_per_source=req.max_results,
+                skip_nvd=req.skip_nvd, skip_osv=req.skip_osv,
+                nvd_api_key=settings.nvd_api_key,
+                attackerkb_api_key=settings.attackerkb_api_key,
+            )
+            s2 = run_stage2(s1, allow_network=not req.offline)
+            s3 = run_stage3(s2, github_token=req.github_token, top_n_cves=req.top_n,
+                            allow_network=not req.offline, skip_github=req.skip_github)
+            verdict = build_verdict(s1, s2, s3, gemini_api_key=req.gemini_api_key,
+                                    force_deterministic=req.deterministic)
+            result = FullAnalysisResponse(stage1=s1, stage2=s2, stage3=s3, verdict=verdict)
+            if _p_key:
+                try:
+                    _cache.set(_p_key, "pipeline", result.model_dump(mode="json"), _cache._PIPELINE_TTL)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.exception("Report generation pipeline error")
+            raise HTTPException(500, detail=str(e))
+
+    sw_safe  = req.software.strip().replace("/", "_").replace(":", "_")
+    ver_safe = req.version.strip().replace("/", "_")
+
+    if fmt == "json":
+        content  = result.model_dump_json(indent=2)
+        filename = f"vael_report_{sw_safe}_{ver_safe}.json"
+        media    = "application/json"
+    else:
+        from core.report_generator import generate_report
+        content  = generate_report(result.stage1, result.stage2, result.stage3, result.verdict)
+        filename = f"vael_report_{sw_safe}_{ver_safe}.md"
+        media    = "text/markdown"
+
+    return StreamingResponse(
+        iter([content]),
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/analyze/stream")
 def analyze_stream(
     software: str = Query(..., description="Software name, e.g. log4j"),

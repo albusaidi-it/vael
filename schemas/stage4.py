@@ -8,7 +8,7 @@ the affected software/version, giving a real-world attack surface estimate.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -86,7 +86,7 @@ class Stage4Result(BaseModel):
     """Top-level output of Stage 4."""
     software: str
     version: str
-    query_ts: datetime = Field(default_factory=datetime.utcnow)
+    query_ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     exposures: list[ExposureResult] = Field(default_factory=list)
     total_exposed: int = 0

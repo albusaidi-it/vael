@@ -34,7 +34,7 @@ def health():
     return {
         "status": "degraded" if exhausted else "ok",
         "stages": [1, 2, 3, 4],
-        "version": "0.4.0",
+        "version": "0.5.0",
         "ai_enabled": bool(settings.effective_gemini_key()),
         "rate_limits": {
             "exhausted_apis": exhausted,

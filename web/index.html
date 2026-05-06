@@ -545,6 +545,12 @@
     <!-- Stats row -->
     <div class="stats-row" id="statsRow"></div>
 
+    <!-- Export buttons -->
+    <div id="exportBar" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="downloadReport('md')" data-i18n="btnDownloadMd">Download Report (.md)</button>
+      <button class="btn btn-secondary" onclick="downloadReport('json')" data-i18n="btnDownloadJson">Export JSON</button>
+    </div>
+
     <!-- Tabs -->
     <div class="card" style="padding:0;overflow:hidden;">
       <div class="tab-bar">
@@ -793,6 +799,9 @@
       statT1High: 'T1 High',
       statMonitor: 'Monitor',
       statPoCs: 'Public PoCs',
+      statMisconfig: 'Misconfigs',
+      btnDownloadMd: 'Download Report (.md)',
+      btnDownloadJson: 'Export JSON',
     },
     ar: {
       tagline: 'محرك تحليل الثغرات الأمنية',
@@ -852,6 +861,9 @@
       statT1High: 'T1 عالي',
       statMonitor: 'مراقبة',
       statPoCs: 'إثباتات عامة',
+      statMisconfig: 'إعدادات خاطئة',
+      btnDownloadMd: 'تنزيل التقرير (.md)',
+      btnDownloadJson: 'تصدير JSON',
     },
   };
 
@@ -1127,7 +1139,8 @@
       statBox(s2.t0_patch_now_count,         t('statPatchNow'),  s2.t0_patch_now_count > 0 ? 'critical' : '') +
       statBox(s2.t1_high_count ?? '—',       t('statT1High'),   (s2.t1_high_count   > 0) ? 'warn' : '') +
       statBox(s2.t2_monitor_count ?? '—',    t('statMonitor'),   '') +
-      statBox(s3 ? s3.total_pocs : '—',      t('statPoCs'),      (s3 && s3.total_pocs > 0) ? 'accent' : '');
+      statBox(s3 ? s3.total_pocs : '—',      t('statPoCs'),      (s3 && s3.total_pocs > 0) ? 'accent' : '') +
+      statBox(s1.misconfig_flags?.length ?? '—', t('statMisconfig'), (s1.misconfig_flags?.length > 0) ? 'warn' : '');
   }
 
   function sevBadge(sev) {
@@ -1797,6 +1810,42 @@
       <div style="margin-bottom:24px;line-height:1.8;font-size:0.9rem">${paras}</div>
       <div class="section-label" style="margin-bottom:10px">Key Evidence</div>
       <ul class="evidence-list">${evidenceItems}</ul>`;
+  }
+
+  // ── Report Export ─────────────────────────────────────────────────────
+  async function downloadReport(fmt) {
+    const sw  = _currentSoftware || document.getElementById('software').value.trim();
+    const ver = _currentVersion  || document.getElementById('version').value.trim();
+    if (!sw || !ver) {
+      setStatus('Run an analysis first before downloading the report.', 'error');
+      return;
+    }
+    const offline       = document.getElementById('offline').checked;
+    const deterministic = document.getElementById('deterministic').checked;
+    const skipGithub    = document.getElementById('skipGithub').checked;
+
+    try {
+      const resp = await fetch(`${API}/analyze/report?fmt=${fmt}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ software: sw, version: ver, offline, deterministic, skip_github: skipGithub }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        setStatus(`Report error: ${err.detail || resp.statusText}`, 'error');
+        return;
+      }
+      const blob     = await resp.blob();
+      const swSafe   = sw.replace(/[/:\\]/g, '_');
+      const verSafe  = ver.replace(/[/:\\]/g, '_');
+      const filename = `vael_report_${swSafe}_${verSafe}.${fmt}`;
+      const url      = URL.createObjectURL(blob);
+      const a        = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setStatus(`Download failed: ${e.message}`, 'error');
+    }
   }
 
   // ── Delta Tracker ─────────────────────────────────────────────────────

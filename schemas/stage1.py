@@ -5,7 +5,7 @@ All downstream stages consume these models.
 """
 
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -89,7 +89,7 @@ class Stage1Result(BaseModel):
     software: str
     version: str
     cpe_string: Optional[str] = None            # CPE 2.3 if provided or auto-detected
-    query_ts: datetime = Field(default_factory=datetime.utcnow)
+    query_ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Core outputs
     cves: list[CVERecord] = Field(default_factory=list)
