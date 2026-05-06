@@ -6,6 +6,7 @@ VAEL API – Analysis routes.
   POST /analyze/full
   GET  /analyze/stream
   POST /analyze/exposure
+  POST /analyze/attack-path
   POST /analyze/sbom
   POST /analyze/oman
 """
@@ -30,6 +31,7 @@ from schemas.stage1 import Stage1Result
 from schemas.stage2 import Stage2Result
 from schemas.stage3 import Stage3Result
 from schemas.stage4 import Stage4Result
+from schemas.stage5 import Stage5Result
 from core import cache as _cache
 
 logger = logging.getLogger(__name__)
@@ -388,6 +390,32 @@ def analyze_exposure(req: ExploitRequest):
     except Exception:
         logger.exception("Stage 4 error")
         raise HTTPException(500, detail="Stage 4 exposure analysis failed")
+
+
+@router.post("/analyze/attack-path", response_model=Stage5Result)
+def analyze_attack_path(req: ExploitRequest):
+    """
+    Stage 5: Map CVEs to MITRE ATT&CK tactics and build a kill-chain graph.
+
+    Uses Stage 2 enrichments (cached when available) to produce a tactic-ordered
+    DAG showing which ATT&CK tactics are reachable via the discovered CVEs.
+    """
+    _validate(req)
+    try:
+        from core.attack_path import run_stage5
+        s1 = run_stage1(
+            software=req.software.strip(), version=req.version.strip(),
+            cpe_string=req.cpe_string, osv_ecosystem=req.ecosystem,
+            max_results_per_source=req.max_results,
+            skip_nvd=req.skip_nvd, skip_osv=req.skip_osv,
+            nvd_api_key=settings.nvd_api_key,
+            attackerkb_api_key=settings.attackerkb_api_key,
+        )
+        s2 = run_stage2(s1, allow_network=not req.offline)
+        return run_stage5(s2)
+    except Exception:
+        logger.exception("Stage 5 error")
+        raise HTTPException(500, detail="Attack path analysis failed")
 
 
 @router.post("/analyze/sbom", response_model=SBOMAnalysisSummary)

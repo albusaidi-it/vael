@@ -65,21 +65,6 @@
       border-radius: 8px;
       padding: 3px;
     }
-    .lang-btn {
-      padding: 4px 11px;
-      border-radius: 5px;
-      font-size: 0.76rem;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      transition: all 0.15s;
-      font-family: var(--font);
-    }
-    .lang-btn.active { background: var(--surface3); color: var(--text); }
-    .lang-btn:hover:not(.active) { color: var(--text); }
-
     /* ── Layout ──────────────────────────────────────── */
     main { max-width: 1120px; margin: 0 auto; padding: 40px 24px; }
 
@@ -168,7 +153,6 @@
       vertical-align: middle;
       margin-right: 8px; flex-shrink: 0;
     }
-    [dir="rtl"] .spinner { margin-right: 0; margin-left: 8px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Status bar ──────────────────────────────────── */
@@ -190,7 +174,6 @@
       margin-bottom: 20px;
       border-left: 3px solid;
     }
-    [dir="rtl"] .verdict-banner { border-left: none; border-right: 3px solid; }
     .verdict-banner.patch-now { border-color: var(--red);    background: rgba(255,69,58,0.07);  }
     .verdict-banner.high      { border-color: var(--orange); background: rgba(255,159,10,0.07); }
     .verdict-banner.monitor   { border-color: var(--yellow); background: rgba(255,214,10,0.07); }
@@ -263,7 +246,6 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    [dir="rtl"] .vael-table th { text-align: right; }
     .vael-table td {
       padding: 10px 12px;
       border-bottom: 1px solid var(--border);
@@ -353,7 +335,6 @@
     }
     .evidence-list li:last-child { border-bottom: none; }
     .evidence-list li::before { content: "→"; color: var(--accent); flex-shrink: 0; }
-    [dir="rtl"] .evidence-list li::before { content: "←"; }
 
     /* ── Exposure source grid ────────────────────────── */
     .src-count-grid {
@@ -424,16 +405,64 @@
     }
     .delta-timeline strong { color:var(--text); }
 
-    /* ── RTL overrides ───────────────────────────────── */
-    [dir="rtl"] .form-group input,
-    [dir="rtl"] .form-group select   { text-align: right; }
-    [dir="rtl"] .btn-row             { flex-direction: row-reverse; }
-    [dir="rtl"] .quick-fill          { flex-direction: row-reverse; }
-    [dir="rtl"] .poc-card-header     { flex-direction: row-reverse; }
-    [dir="rtl"] .poc-card-meta       { flex-direction: row-reverse; }
-    [dir="rtl"] .header-left         { flex-direction: row-reverse; }
-    [dir="rtl"] .tab-bar             { flex-direction: row-reverse; }
-    [dir="rtl"] .confidence-bar-wrap { flex-direction: row-reverse; }
+    /* ── Attack Path ─────────────────────────────────── */
+    .attack-chain {
+      display:flex; flex-wrap:wrap; gap:0;
+      align-items:center; margin:20px 0 8px;
+    }
+    .attack-tactic {
+      display:flex; flex-direction:column; align-items:center;
+      padding:10px 14px; border-radius:8px; cursor:pointer;
+      min-width:82px; text-align:center;
+      transition:transform 0.15s, box-shadow 0.15s;
+      border:2px solid transparent; position:relative;
+    }
+    .attack-tactic:hover { transform:translateY(-3px); box-shadow:0 6px 18px rgba(0,0,0,0.25); }
+    .attack-tactic.selected { border-color:var(--accent-hi) !important; }
+    .attack-tactic.at-risk-high { background:rgba(255,69,58,0.14); }
+    .attack-tactic.at-risk-med  { background:rgba(255,159,10,0.13); }
+    .attack-tactic.at-risk-low  { background:rgba(48,209,88,0.10); }
+    .attack-tactic.at-risk-none { background:var(--surface-2); opacity:0.4; cursor:default; }
+    .attack-tactic .tac-count { font-size:1.25rem; font-weight:700; line-height:1; margin-bottom:4px; }
+    .attack-tactic .tac-name  { font-size:0.65rem; font-weight:600; text-transform:uppercase;
+                                 letter-spacing:0.04em; color:var(--muted); line-height:1.3; }
+    .attack-tactic.at-risk-high .tac-count { color:var(--red); }
+    .attack-tactic.at-risk-med  .tac-count { color:var(--orange); }
+    .attack-tactic.at-risk-low  .tac-count { color:var(--green); }
+    .attack-arrow {
+      font-size:1rem; color:var(--muted); padding:0 3px;
+      margin-bottom:20px; flex-shrink:0;
+    }
+    .attack-summary-row {
+      display:flex; gap:20px; flex-wrap:wrap;
+      margin-bottom:20px; padding:14px 18px;
+      background:var(--surface-2); border-radius:10px;
+    }
+    .attack-summary-item { display:flex; flex-direction:column; gap:2px; }
+    .attack-summary-item .num { font-size:1.4rem; font-weight:700; }
+    .attack-summary-item .lbl { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+    .attack-detail-panel {
+      margin-top:16px; padding:18px 20px;
+      background:var(--surface-2); border-radius:10px;
+      border-left:3px solid var(--accent-hi);
+    }
+    .attack-detail-panel h4 { margin:0 0 12px; font-size:0.95rem; }
+    .technique-row {
+      display:flex; gap:12px; align-items:flex-start;
+      padding:8px 0; border-bottom:1px solid var(--border); font-size:0.83rem;
+    }
+    .technique-row:last-child { border-bottom:none; }
+    .technique-id {
+      font-family:monospace; font-size:0.75rem; font-weight:600;
+      color:var(--accent-hi); white-space:nowrap; padding-top:1px;
+    }
+    .technique-meta { font-size:0.72rem; color:var(--muted); margin-top:3px; }
+    .technique-cve-badge {
+      display:inline-block; font-size:0.65rem; padding:2px 6px;
+      border-radius:4px; background:rgba(0,113,227,0.12);
+      color:var(--accent-hi); margin-right:4px; white-space:nowrap;
+    }
+    .attack-empty { color:var(--muted); font-size:0.88rem; margin:20px 0; }
 
     /* ── Utility ─────────────────────────────────────── */
     .hidden { display: none !important; }
@@ -461,8 +490,6 @@
     <div class="tagline" data-i18n="tagline">Vulnerability Analysis Engine</div>
   </div>
   <div class="lang-switch">
-    <button class="lang-btn active" onclick="setLang('en')">EN</button>
-    <button class="lang-btn" onclick="setLang('ar')">AR</button>
   </div>
 </header>
 
@@ -558,6 +585,7 @@
         <div class="tab" onclick="switchTab('stage2')" data-i18n="tabExploit">Exploitability</div>
         <div class="tab" onclick="switchTab('stage3')" data-i18n="tabPoC">Public PoCs</div>
         <div class="tab" onclick="switchTab('exposure')" data-i18n="tabExposure">Global Exposure</div>
+        <div class="tab" onclick="switchTab('attack')" data-i18n="tabAttack">Attack Path</div>
         <div class="tab" onclick="switchTab('verdict')" data-i18n="tabVerdict">AI Verdict</div>
         <div class="tab" onclick="switchTab('delta')" data-i18n="tabDelta">Delta Tracker</div>
       </div>
@@ -573,6 +601,17 @@
             <span data-i18n="btnCheckExposure">Check Global Exposure</span>
           </button>
           <div id="exposureOutput" style="margin-top:20px;"></div>
+        </div>
+        <div id="tab-attack" class="tab-panel">
+          <p style="color:var(--muted);font-size:0.86rem;margin-bottom:16px;line-height:1.6;" data-i18n="attackDesc">
+            Maps discovered CVEs to MITRE ATT&CK tactics using CWE cross-walk and CVSS heuristics.
+            Shows which kill-chain stages are reachable, how many CVEs enable each tactic, and
+            which techniques an attacker would use.
+          </p>
+          <button class="btn btn-primary" id="attackRunBtn" onclick="runAttackPath()">
+            <span data-i18n="btnMapAttack">Map Attack Path</span>
+          </button>
+          <div id="attackOutput" style="margin-top:20px;"></div>
         </div>
         <div id="tab-verdict"  class="tab-panel"></div>
         <div id="tab-delta"    class="tab-panel">
@@ -741,8 +780,7 @@
 
   // ── i18n ──────────────────────────────────────────────────────────────
   const STRINGS = {
-    en: {
-      tagline: 'Vulnerability Analysis Engine',
+    tagline: 'Vulnerability Analysis Engine',
       analyzeTitle: 'Analyze Software',
       demoLabel: 'Demo scenarios:',
       swLabel: 'Software / Package Name',
@@ -761,6 +799,7 @@
       tabExploit: 'Exploitability',
       tabPoC: 'Public PoCs',
       tabExposure: 'Global Exposure',
+      tabAttack: 'Attack Path',
       tabVerdict: 'AI Verdict',
       tabDelta: 'Delta Tracker',
       exposureDesc: 'Query Shodan, Censys, FOFA, and ZoomEye to count globally internet-exposed hosts running the analyzed software. Results are cached for 6 hours.',
@@ -800,98 +839,20 @@
       statMonitor: 'Monitor',
       statPoCs: 'Public PoCs',
       statMisconfig: 'Misconfigs',
+      attackDesc: 'Maps discovered CVEs to MITRE ATT&CK tactics using CWE cross-walk and CVSS heuristics. Shows which kill-chain stages are reachable and which techniques an attacker would use.',
+      btnMapAttack: 'Map Attack Path',
+      attackNoSoftware: 'Run the main analysis first, then map the attack path.',
+      attackRunning: 'Building ATT&CK kill-chain…',
+      attackEmpty: 'No ATT&CK mappings found — CVEs may lack CWE tags or CVSS vectors.',
+      attackStatTactics: 'Tactics Covered',
+      attackStatTechniques: 'Techniques',
+      attackStatHighestRisk: 'Highest-Risk Tactic',
+      attackClickTactic: 'Click a tactic box to see techniques and CVEs.',
       btnDownloadMd: 'Download Report (.md)',
       btnDownloadJson: 'Export JSON',
-    },
-    ar: {
-      tagline: 'محرك تحليل الثغرات الأمنية',
-      analyzeTitle: 'تحليل البرمجيات',
-      demoLabel: 'سيناريوهات تجريبية:',
-      swLabel: 'اسم البرنامج / الحزمة',
-      swPlaceholder: 'مثال: log4j, nginx, openssl',
-      verLabel: 'الإصدار',
-      verPlaceholder: 'مثال: 2.14.1',
-      cpeLabel: 'CPE (اختياري)',
-      ecosystemLabel: 'النظام البيئي (اختياري)',
-      ecosystemPlaceholder: 'مثال: Maven, PyPI, npm',
-      optOffline: 'وضع عدم الاتصال',
-      optDeterministic: 'حكم حتمي (بدون ذكاء اصطناعي)',
-      optSkipGithub: 'تخطي بحث GitHub',
-      btnAnalyze: 'تحليل',
-      btnClear: 'مسح',
-      tabCVE: 'قائمة CVE',
-      tabExploit: 'قابلية الاستغلال',
-      tabPoC: 'إثباتات الاختراق',
-      tabExposure: 'التعرض العالمي',
-      tabVerdict: 'حكم الذكاء الاصطناعي',
-      tabDelta: 'متتبع التغييرات',
-      exposureDesc: 'استعلم من Shodan وCensys وFOFA وZoomEye لحساب المضيفين المكشوفين على الإنترنت الذين يشغّلون البرنامج المحلل. تُخزَّن النتائج مؤقتاً لمدة 6 ساعات.',
-      btnCheckExposure: 'فحص التعرض العالمي',
-      deltaDesc: 'قارن تحليل اليوم بالخط الأساسي المحفوظ لرصد CVEs الجديدة، وتصعيد الأولويات، وإضافات KEV، وارتفاع EPSS، وثغرات الاستغلال الجديدة.',
-      btnRunDelta: 'تشغيل تحليل الفروقات',
-      deltaNoSoftware: 'قم بتشغيل التحليل الرئيسي أولاً، ثم ارجع هنا للمقارنة مع الخط الأساسي.',
-      deltaChecking: 'جارٍ التحقق من حالة الخط الأساسي…',
-      deltaNoBaseline: 'لا يوجد خط أساسي محفوظ — سيتم إنشاؤه بهذا التشغيل.',
-      deltaHasBaseline: 'تم حفظ الخط الأساسي',
-      deltaRunning: 'جارٍ تشغيل تحليل الفروقات…',
-      deltaNoChanges: 'لم يتم رصد أي تغييرات منذ آخر خط أساسي.',
-      omanTitle: '🇴🇲 التعرض الإنترنتي في عُمان',
-      omanPowered: 'مدعوم من Shodan · FOFA · Censys · ZoomEye',
-      omanDesc: 'ابحث عن المضيفين المكشوفين على الإنترنت داخل عُمان الذين يشغّلون برنامجاً معيناً أو مكشوفون لثغرة محددة.',
-      omanSwLabel: 'البرنامج',
-      omanSwPlaceholder: 'مثال: apache, nginx, log4j',
-      omanVerLabel: 'الإصدار',
-      btnSearchOman: 'بحث في عُمان 🇴🇲',
-      btnCopyFromAnalysis: 'نسخ من التحليل',
-      roadmapTitle: '📋 خارطة الطريق',
-      roadmapCompleted: '✓ مكتمل',
-      roadmapNext: '→ قادم قريباً',
-      roadmapHistory: 'سجل الإصدارات',
-      rateLimitTitle: '⚠ تحذيرات حد المعدل',
-      loadingStage1: 'المرحلة 1: رسم خريطة CVE من NVD + OSV…',
-      loadingStage2: 'المرحلة 2: جلب نتائج EPSS + CISA KEV…',
-      loadingStage3: 'المرحلة 3: جمع إثباتات الاختراق من GitHub, Exploit-DB, Nuclei, Metasploit, Pastebin…',
-      loadingVerdict: 'إنشاء حكم الذكاء الاصطناعي…',
-      statTotalCVEs: 'إجمالي CVE',
-      statCritical: 'حرج',
-      statHigh: 'عالي',
-      statVerMatch: 'تطابق الإصدار',
-      statInKEV: 'في KEV',
-      statPatchNow: 'تصحيح فوري',
-      statT1High: 'T1 عالي',
-      statMonitor: 'مراقبة',
-      statPoCs: 'إثباتات عامة',
-      statMisconfig: 'إعدادات خاطئة',
-      btnDownloadMd: 'تنزيل التقرير (.md)',
-      btnDownloadJson: 'تصدير JSON',
-    },
   };
 
-  let _lang = 'en';
-
-  function t(key) {
-    return (STRINGS[_lang] && STRINGS[_lang][key]) || STRINGS.en[key] || key;
-  }
-
-  function setLang(lang) {
-    _lang = lang;
-    const html = document.documentElement;
-    html.lang = lang;
-    html.dir  = lang === 'ar' ? 'rtl' : 'ltr';
-    document.querySelectorAll('.lang-btn').forEach(b => {
-      b.classList.toggle('active', b.textContent.trim().toUpperCase() === lang.toUpperCase());
-    });
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      const val = t(key);
-      if (val) el.textContent = val;
-    });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      const key = el.getAttribute('data-i18n-placeholder');
-      const val = t(key);
-      if (val) el.placeholder = val;
-    });
-  }
+  function t(key) { return STRINGS[key] || key; }
 
   // ── Label maps ────────────────────────────────────────────────────────
   const TIER_LABELS = {
@@ -915,14 +876,15 @@
 
   // ── Tab management ────────────────────────────────────────────────────
   function switchTab(name) {
-    const names = ['stage1','stage2','stage3','exposure','verdict','delta'];
+    const names = ['stage1','stage2','stage3','exposure','attack','verdict','delta'];
     document.querySelectorAll('.tab').forEach((tab, i) => {
       tab.classList.toggle('active', names[i] === name);
     });
     document.querySelectorAll('.tab-panel').forEach(p => {
       p.classList.toggle('active', p.id === `tab-${name}`);
     });
-    if (name === 'delta') _checkDeltaBaseline();
+    if (name === 'delta')  _checkDeltaBaseline();
+    if (name === 'attack') _maybeAutoRunAttack();
   }
 
   function setStatus(msg, type = 'info') {
@@ -1994,8 +1956,204 @@
       <div>${rows}</div>`;
   }
 
+  // ── Attack Path (Stage 5) ─────────────────────────────────────────────
+
+  let _attackData = null;
+  let _attackSelectedTactic = null;
+
+  function _maybeAutoRunAttack() {
+    const sw  = (document.getElementById('swInput')  || {}).value?.trim();
+    const ver = (document.getElementById('verInput') || {}).value?.trim();
+    if (!sw || !ver) {
+      document.getElementById('attackOutput').innerHTML =
+        `<p class="attack-empty">${t('attackNoSoftware')}</p>`;
+      return;
+    }
+    // Auto-run only once per software+version pair
+    const key = `${sw}|${ver}`;
+    if (_attackData && _attackData._key === key) return;
+    runAttackPath();
+  }
+
+  async function runAttackPath() {
+    const sw  = (document.getElementById('swInput')  || {}).value?.trim();
+    const ver = (document.getElementById('verInput') || {}).value?.trim();
+    if (!sw || !ver) {
+      document.getElementById('attackOutput').innerHTML =
+        `<p class="attack-empty">${t('attackNoSoftware')}</p>`;
+      return;
+    }
+
+    const btn = document.getElementById('attackRunBtn');
+    if (btn) { btn.disabled = true; btn.querySelector('span').textContent = t('attackRunning'); }
+    document.getElementById('attackOutput').innerHTML =
+      `<p class="attack-empty">${t('attackRunning')}</p>`;
+
+    const offline = document.getElementById('optOffline')?.checked || false;
+    try {
+      const resp = await fetch('/analyze/attack-path', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ software: sw, version: ver, offline }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${(await resp.json()).detail || resp.statusText}`);
+      const data = await resp.json();
+      data._key = `${sw}|${ver}`;
+      _attackData = data;
+      _attackSelectedTactic = null;
+      _renderAttackPath(data);
+    } catch (e) {
+      document.getElementById('attackOutput').innerHTML =
+        `<p style="color:var(--red);font-size:0.88rem;">Error: ${e.message}</p>`;
+    } finally {
+      if (btn) { btn.disabled = false; btn.querySelector('span').textContent = t('btnMapAttack'); }
+    }
+  }
+
+  function _attackRiskClass(score) {
+    if (score >= 6) return 'at-risk-high';
+    if (score >= 3) return 'at-risk-med';
+    if (score >= 0.1) return 'at-risk-low';
+    return 'at-risk-none';
+  }
+
+  function _renderAttackPath(data) {
+    const out = document.getElementById('attackOutput');
+    if (!data.total_tactics) {
+      out.innerHTML = `<p class="attack-empty">${t('attackEmpty')}</p>`;
+      return;
+    }
+
+    // ── Summary row ──────────────────────────────────────────────────────
+    const highestLabel = data.highest_risk_tactic || '—';
+    const summaryHtml = `
+      <div class="attack-summary-row">
+        <div class="attack-summary-item">
+          <span class="num" style="color:var(--accent-hi)">${data.total_tactics}</span>
+          <span class="lbl">${t('attackStatTactics')}</span>
+        </div>
+        <div class="attack-summary-item">
+          <span class="num" style="color:var(--orange)">${data.total_techniques}</span>
+          <span class="lbl">${t('attackStatTechniques')}</span>
+        </div>
+        <div class="attack-summary-item">
+          <span class="num" style="color:var(--red);font-size:1rem;">${highestLabel}</span>
+          <span class="lbl">${t('attackStatHighestRisk')}</span>
+        </div>
+      </div>`;
+
+    // ── Kill-chain flow ───────────────────────────────────────────────────
+    const allTacticIds = [
+      'TA0043','TA0001','TA0002','TA0003','TA0004','TA0005',
+      'TA0006','TA0007','TA0008','TA0009','TA0010','TA0011','TA0040'
+    ];
+    const nodeMap = {};
+    (data.tactic_nodes || []).forEach(n => { nodeMap[n.tactic_id] = n; });
+    const activePath = new Set(data.kill_chain_path || []);
+
+    const chainBoxes = allTacticIds.map((tid, idx) => {
+      const node = nodeMap[tid];
+      const active = activePath.has(tid);
+      const riskClass = active ? _attackRiskClass(node?.risk_score || 0) : 'at-risk-none';
+      const count = active ? (node?.cve_ids?.length || 0) : '·';
+      const name = node?.tactic_name || _TACTIC_NAMES[tid] || tid;
+      const shortName = name.replace('Privilege Escalation','Priv. Esc.')
+                            .replace('Defense Evasion','Def. Evasion')
+                            .replace('Command and Control','C2')
+                            .replace('Resource Development','Res. Dev.')
+                            .replace('Lateral Movement','Lateral Mv.');
+      const arrow = idx < allTacticIds.length - 1
+        ? `<span class="attack-arrow">›</span>` : '';
+      return `
+        <div class="attack-tactic ${riskClass}" onclick="_selectTactic('${tid}')" id="atac-${tid}">
+          <div class="tac-count">${count}</div>
+          <div class="tac-name">${shortName}</div>
+        </div>${arrow}`;
+    }).join('');
+
+    const hint = `<p style="font-size:0.78rem;color:var(--muted);margin:8px 0 0;">${t('attackClickTactic')}</p>`;
+    out.innerHTML = summaryHtml +
+      `<div class="attack-chain">${chainBoxes}</div>` + hint +
+      `<div id="attackDetailPanel"></div>`;
+  }
+
+  const _TACTIC_NAMES = {
+    'TA0043':'Reconnaissance','TA0042':'Resource Development',
+    'TA0001':'Initial Access','TA0002':'Execution',
+    'TA0003':'Persistence','TA0004':'Privilege Escalation',
+    'TA0005':'Defense Evasion','TA0006':'Credential Access',
+    'TA0007':'Discovery','TA0008':'Lateral Movement',
+    'TA0009':'Collection','TA0010':'Exfiltration',
+    'TA0011':'Command and Control','TA0040':'Impact',
+  };
+
+  function _selectTactic(tid) {
+    if (!_attackData) return;
+    const nodeMap = {};
+    (_attackData.tactic_nodes || []).forEach(n => { nodeMap[n.tactic_id] = n; });
+    const node = nodeMap[tid];
+    if (!node) return;
+
+    // Toggle selection
+    if (_attackSelectedTactic === tid) {
+      _attackSelectedTactic = null;
+      document.querySelectorAll('.attack-tactic').forEach(el => el.classList.remove('selected'));
+      document.getElementById('attackDetailPanel').innerHTML = '';
+      return;
+    }
+    _attackSelectedTactic = tid;
+    document.querySelectorAll('.attack-tactic').forEach(el => el.classList.remove('selected'));
+    const box = document.getElementById(`atac-${tid}`);
+    if (box) box.classList.add('selected');
+
+    const techRows = (node.techniques || [])
+      .sort((a, b) => (b.cve_ids?.length || 0) - (a.cve_ids?.length || 0))
+      .map(tech => {
+        const cveBadges = (tech.cve_ids || []).slice(0, 5).map(id =>
+          `<span class="technique-cve-badge">${id}</span>`).join('');
+        const more = tech.cve_ids?.length > 5
+          ? `<span style="font-size:0.65rem;color:var(--muted)">+${tech.cve_ids.length - 5} more</span>` : '';
+        const sources = [...(tech.cwe_sources || []).map(c => `CWE-${c}`),
+                         ...(tech.cvss_sources || [])].join(', ');
+        return `
+          <div class="technique-row">
+            <div style="min-width:64px">
+              <div class="technique-id">${tech.technique_id}</div>
+            </div>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:0.83rem;">${tech.technique_name}</div>
+              <div class="technique-meta">${cveBadges}${more}</div>
+              ${sources ? `<div class="technique-meta" style="margin-top:3px;">via ${sources}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+    const riskPct = Math.min(100, Math.round((node.risk_score || 0) * 10));
+    document.getElementById('attackDetailPanel').innerHTML = `
+      <div class="attack-detail-panel">
+        <h4>${node.tactic_name}
+          <span style="font-size:0.75rem;font-weight:400;color:var(--muted);margin-left:8px;">${tid}</span>
+          <span style="font-size:0.75rem;font-weight:400;float:right;color:var(--muted);">
+            Risk score: <strong style="color:var(--text)">${(node.risk_score||0).toFixed(1)}/10</strong>
+            &nbsp;·&nbsp; ${node.cve_ids?.length || 0} CVE(s) &nbsp;·&nbsp; ${node.techniques?.length || 0} technique(s)
+          </span>
+        </h4>
+        <div style="height:4px;background:var(--surface3);border-radius:2px;margin-bottom:16px;overflow:hidden;">
+          <div style="height:100%;width:${riskPct}%;background:var(--red);border-radius:2px;transition:width 0.5s;"></div>
+        </div>
+        ${techRows || '<p style="color:var(--muted);font-size:0.83rem;">No technique details available.</p>'}
+      </div>`;
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────
-  setLang('en');
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const v = t(el.getAttribute('data-i18n'));
+    if (v) el.textContent = v;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const v = t(el.getAttribute('data-i18n-placeholder'));
+    if (v) el.placeholder = v;
+  });
 </script>
 </body>
 </html>
