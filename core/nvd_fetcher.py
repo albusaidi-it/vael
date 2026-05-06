@@ -193,6 +193,7 @@ def fetch_nvd(
         if warn:
             errors.append(f"[RateLimit] {warn}")
 
+        resp = None
         for attempt in range(MAX_RETRIES):
             try:
                 resp = client.get(NVD_BASE, params=params, headers=headers, timeout=30)
@@ -206,6 +207,7 @@ def fetch_nvd(
                         f"{'Add NVD_API_KEY for 10x higher limits.' if not has_key else f'Retrying after {wait}s.'}"
                     )
                     time.sleep(wait)
+                    resp = None
                     continue
                 resp.raise_for_status()
                 break
@@ -217,6 +219,10 @@ def fetch_nvd(
             except httpx.RequestError as e:
                 errors.append(f"NVD request error: {e}")
                 return cve_records, errors
+
+        if resp is None:
+            errors.append("[RateLimit] NVD rate limit: all retries exhausted")
+            return cve_records, errors
 
         data = resp.json()
         items = data.get("vulnerabilities", [])

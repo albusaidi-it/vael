@@ -15,6 +15,8 @@ threads (httpx connection pools are thread-safe).
 """
 from __future__ import annotations
 
+import warnings
+
 import httpx
 
 _LIMITS = httpx.Limits(
@@ -48,12 +50,15 @@ scrape = httpx.Client(
     limits=_LIMITS,
 )
 
-# Same as scrape but with TLS verification disabled for platforms that use
-# self-signed or untrusted certificates (some Chinese intelligence platforms)
-scrape_noverify = httpx.Client(
-    headers=_SCRAPE_HEADERS,
-    timeout=15,
-    follow_redirects=True,
-    verify=False,
-    limits=_LIMITS,
-)
+# Same as scrape but with TLS verification disabled. Only used by specific
+# scrapers that target platforms with known self-signed certs (Seebug, Gitee
+# mirrors). Do NOT use this client for any endpoint that processes credentials.
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", message="Unverified HTTPS request")
+    scrape_noverify = httpx.Client(
+        headers=_SCRAPE_HEADERS,
+        timeout=15,
+        follow_redirects=True,
+        verify=False,
+        limits=_LIMITS,
+    )

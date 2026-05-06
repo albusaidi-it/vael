@@ -131,12 +131,14 @@ def pipeline_cache_key(
     ecosystem: str = "",
     deterministic: bool = False,
     top_n: int = 10,
+    cpe_string: str = "",
 ) -> str:
     """
     Stable key for a full pipeline run (stage1+stage2+stage3+verdict).
 
     Only the inputs that materially change the output are included:
       - software / version / ecosystem  → change which CVEs are found
+      - cpe_string                      → narrows/changes CVE matching
       - deterministic                   → changes verdict engine (AI vs rule-based)
       - top_n                           → changes how many CVEs get PoC harvesting
 
@@ -150,6 +152,7 @@ def pipeline_cache_key(
         (ecosystem or "").lower().strip(),
         str(deterministic),
         str(top_n),
+        (cpe_string or "").lower().strip(),
     )
 
 
@@ -183,7 +186,7 @@ def set(key: str, source: str, value: Any, ttl_seconds: int) -> None:
         raw  = json.dumps(value, default=str).encode("utf-8")
         compressed = 0
         if len(raw) > _COMPRESS_THRESHOLD:
-            raw = zlib.compress(raw, level=6)
+            raw = zlib.compress(raw, level=1)
             compressed = 1
         with _lock:
             conn.execute(
@@ -298,36 +301,48 @@ def epss_upsert_batch(rows: list[tuple]) -> None:
     Bulk-insert EPSS rows. Each row: (cve_id, epss, percentile, score_date).
     Uses a full table replace: DELETE then INSERT in one transaction for
     atomicity — readers never see a half-loaded table.
+    BEGIN EXCLUSIVE acquires a file-level lock that blocks other SQLite writers
+    across processes (gunicorn workers), not just threads.
     """
-    try:
-        conn = _get_conn()
-        with _lock:
+    conn = _get_conn()
+    with _lock:
+        try:
+            conn.execute("BEGIN EXCLUSIVE")
             conn.execute("DELETE FROM epss")
             conn.executemany(
                 "INSERT INTO epss(cve_id, epss, percentile, score_date) VALUES (?,?,?,?)",
                 rows,
             )
             conn.commit()
-    except Exception as e:
-        logger.error("epss_upsert_batch failed: %s", e)
+        except Exception as e:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            logger.error("epss_upsert_batch failed: %s", e)
 
 
 def epss_lookup_many(cve_ids: list[str]) -> dict[str, Optional[dict]]:
-    """Return EPSS row dicts keyed by CVE ID (uppercase). Missing → None."""
+    """Return EPSS row dicts keyed by CVE ID (uppercase). Missing → None.
+    Queries in chunks of 500 to stay within SQLite's 999-parameter limit."""
     if not cve_ids:
         return {}
     upper = [c.upper() for c in cve_ids]
+    found: dict[str, dict] = {}
     try:
-        placeholders = ",".join("?" * len(upper))
-        rows = _get_conn().execute(
-            f"SELECT cve_id, epss, percentile, score_date FROM epss WHERE cve_id IN ({placeholders})",
-            upper,
-        ).fetchall()
-        found = {r["cve_id"]: dict(r) for r in rows}
-        return {cid: found.get(cid) for cid in upper}
+        conn = _get_conn()
+        for i in range(0, len(upper), 500):
+            chunk = upper[i:i + 500]
+            placeholders = ",".join("?" * len(chunk))
+            rows = conn.execute(
+                f"SELECT cve_id, epss, percentile, score_date FROM epss WHERE cve_id IN ({placeholders})",
+                chunk,
+            ).fetchall()
+            for r in rows:
+                found[r["cve_id"]] = dict(r)
     except Exception as e:
         logger.debug("epss_lookup_many error: %s", e)
-        return {cid: None for cid in upper}
+    return {cid: found.get(cid) for cid in upper}
 
 
 # ── KEV helpers ───────────────────────────────────────────────────────────────
@@ -338,19 +353,24 @@ def kev_upsert_batch(rows: list[tuple]) -> None:
     (cve_id, vendor_project, product, vulnerability_name, date_added,
      short_description, required_action, due_date,
      known_ransomware_campaign_use, notes).
-    Full table replace for atomicity.
+    Full table replace for atomicity. BEGIN EXCLUSIVE prevents cross-process races.
     """
-    try:
-        conn = _get_conn()
-        with _lock:
+    conn = _get_conn()
+    with _lock:
+        try:
+            conn.execute("BEGIN EXCLUSIVE")
             conn.execute("DELETE FROM kev")
             conn.executemany(
                 "INSERT INTO kev VALUES (?,?,?,?,?,?,?,?,?,?)",
                 rows,
             )
             conn.commit()
-    except Exception as e:
-        logger.error("kev_upsert_batch failed: %s", e)
+        except Exception as e:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            logger.error("kev_upsert_batch failed: %s", e)
 
 
 def kev_lookup_many(cve_ids: list[str]) -> dict[str, Optional[dict]]:

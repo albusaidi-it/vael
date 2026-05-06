@@ -342,7 +342,11 @@ def call_gemini(
                 "response_mime_type": "application/json",
             },
         )
-        response = gen_model.generate_content(prompt)
+        from google.generativeai import types as _gtypes
+        response = gen_model.generate_content(
+            prompt,
+            request_options=_gtypes.RequestOptions(timeout=timeout),
+        )
         return response.text
     except Exception as e:
         logger.error("Gemini call failed: %s", e)

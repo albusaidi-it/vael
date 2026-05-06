@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Generator, Optional
 
@@ -119,9 +120,9 @@ def analyze(req: AnalyzeRequest):
             max_results_per_source=req.max_results,
             skip_nvd=req.skip_nvd, skip_osv=req.skip_osv,
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Stage 1 error")
-        raise HTTPException(500, detail=str(e))
+        raise HTTPException(500, detail="Stage 1 analysis failed")
 
 
 @router.post("/analyze/exploit", response_model=Stage2Result)
@@ -135,9 +136,9 @@ def analyze_exploit(req: ExploitRequest):
             skip_nvd=req.skip_nvd, skip_osv=req.skip_osv,
         )
         return run_stage2(s1, allow_network=not req.offline)
-    except Exception as e:
+    except Exception:
         logger.exception("Stage 2 error")
-        raise HTTPException(500, detail=str(e))
+        raise HTTPException(500, detail="Stage 2 analysis failed")
 
 
 @router.post("/analyze/pocs", response_model=Stage3Result)
@@ -155,26 +156,26 @@ def analyze_pocs(req: PoCRequest):
             s2, github_token=req.github_token, top_n_cves=req.top_n,
             allow_network=not req.offline, skip_github=req.skip_github,
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Stage 3 error")
-        raise HTTPException(500, detail=str(e))
+        raise HTTPException(500, detail="Stage 3 analysis failed")
 
 
-@router.post("/analyze/full", response_model=FullAnalysisResponse)
-def analyze_full(req: FullAnalysisRequest):
-    """Full pipeline: all stages + AI verdict. This is the flagship endpoint."""
-    _validate(req)
-
-    # Pipeline-level cache: skip for partial/offline runs so we never cache
-    # incomplete results.  Also skip if any source is explicitly disabled.
+def _run_full_pipeline(req: FullAnalysisRequest) -> FullAnalysisResponse:
+    """
+    Execute the full VAEL pipeline (stages 1-3 + verdict) with cache read/write.
+    Raises HTTPException on failure. Shared by /analyze/full and /analyze/report.
+    """
     _use_cache = not req.offline and not req.skip_nvd and not req.skip_osv
     _p_key = (
         _cache.pipeline_cache_key(
             req.software.strip(), req.version.strip(),
             req.ecosystem or "", req.deterministic, req.top_n,
+            req.cpe_string or "",
         )
         if _use_cache else None
     )
+
     if _p_key:
         _hit = _cache.get(_p_key)
         if _hit:
@@ -182,7 +183,7 @@ def analyze_full(req: FullAnalysisRequest):
                 logger.debug("Pipeline cache HIT for %s %s", req.software, req.version)
                 return FullAnalysisResponse.model_validate(_hit)
             except Exception:
-                pass  # corrupt/stale entry — fall through and recompute
+                _cache.delete(_p_key)  # evict corrupt entry, recompute fresh
 
     try:
         s1 = run_stage1(
@@ -214,9 +215,18 @@ def analyze_full(req: FullAnalysisRequest):
             except Exception as ce:
                 logger.debug("Pipeline cache write failed: %s", ce)
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Full pipeline error")
-        raise HTTPException(500, detail=str(e))
+        raise HTTPException(500, detail="Pipeline analysis failed")
+
+
+@router.post("/analyze/full", response_model=FullAnalysisResponse)
+def analyze_full(req: FullAnalysisRequest):
+    """Full pipeline: all stages + AI verdict. This is the flagship endpoint."""
+    _validate(req)
+    return _run_full_pipeline(req)
 
 
 @router.post("/analyze/report")
@@ -227,54 +237,11 @@ def analyze_report(req: FullAnalysisRequest, fmt: str = Query("md", description=
     fmt=json → JSON file
     """
     _validate(req)
+    result = _run_full_pipeline(req)
 
-    # Reuse pipeline cache if available
-    _use_cache = not req.offline and not req.skip_nvd and not req.skip_osv
-    _p_key = (
-        _cache.pipeline_cache_key(
-            req.software.strip(), req.version.strip(),
-            req.ecosystem or "", req.deterministic, req.top_n,
-        )
-        if _use_cache else None
-    )
-
-    result: Optional[FullAnalysisResponse] = None
-    if _p_key:
-        _hit = _cache.get(_p_key)
-        if _hit:
-            try:
-                result = FullAnalysisResponse.model_validate(_hit)
-                logger.debug("Report: pipeline cache HIT for %s %s", req.software, req.version)
-            except Exception:
-                pass
-
-    if result is None:
-        try:
-            s1 = run_stage1(
-                software=req.software.strip(), version=req.version.strip(),
-                cpe_string=req.cpe_string, osv_ecosystem=req.ecosystem,
-                max_results_per_source=req.max_results,
-                skip_nvd=req.skip_nvd, skip_osv=req.skip_osv,
-                nvd_api_key=settings.nvd_api_key,
-                attackerkb_api_key=settings.attackerkb_api_key,
-            )
-            s2 = run_stage2(s1, allow_network=not req.offline)
-            s3 = run_stage3(s2, github_token=req.github_token, top_n_cves=req.top_n,
-                            allow_network=not req.offline, skip_github=req.skip_github)
-            verdict = build_verdict(s1, s2, s3, gemini_api_key=req.gemini_api_key,
-                                    force_deterministic=req.deterministic)
-            result = FullAnalysisResponse(stage1=s1, stage2=s2, stage3=s3, verdict=verdict)
-            if _p_key:
-                try:
-                    _cache.set(_p_key, "pipeline", result.model_dump(mode="json"), _cache._PIPELINE_TTL)
-                except Exception:
-                    pass
-        except Exception as e:
-            logger.exception("Report generation pipeline error")
-            raise HTTPException(500, detail=str(e))
-
-    sw_safe  = req.software.strip().replace("/", "_").replace(":", "_")
-    ver_safe = req.version.strip().replace("/", "_")
+    _unsafe = re.compile(r"[^A-Za-z0-9._-]")
+    sw_safe  = _unsafe.sub("_", req.software.strip())[:64]
+    ver_safe = _unsafe.sub("_", req.version.strip())[:32]
 
     if fmt == "json":
         content  = result.model_dump_json(indent=2)
@@ -326,7 +293,7 @@ def analyze_stream(
 
     _use_cache = not offline and not skip_nvd and not skip_osv
     _p_key = (
-        _cache.pipeline_cache_key(software.strip(), version.strip(), "", deterministic, top_n)
+        _cache.pipeline_cache_key(software.strip(), version.strip(), "", deterministic, top_n, "")
         if _use_cache else None
     )
 
@@ -418,9 +385,9 @@ def analyze_exposure(req: ExploitRequest):
         s1 = run_stage1(software=req.software.strip(), version=req.version.strip())
         s2 = run_stage2(s1, allow_network=not req.offline)
         return run_stage4(s2, cpe=s1.cpe_string)
-    except Exception as e:
+    except Exception:
         logger.exception("Stage 4 error")
-        raise HTTPException(500, detail=str(e))
+        raise HTTPException(500, detail="Stage 4 exposure analysis failed")
 
 
 @router.post("/analyze/sbom", response_model=SBOMAnalysisSummary)
@@ -440,9 +407,13 @@ async def analyze_sbom(
     import tempfile
     from core.sbom_parser import parse_sbom
 
+    _MAX_SBOM_BYTES = 10 * 1024 * 1024  # 10 MB
     suffix = Path(file.filename or "bom.json").suffix
+    raw = await file.read()
+    if len(raw) > _MAX_SBOM_BYTES:
+        raise HTTPException(413, detail=f"SBOM file too large (max {_MAX_SBOM_BYTES // 1024 // 1024} MB)")
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(await file.read())
+        tmp.write(raw)
         tmp_path = tmp.name
 
     try:
@@ -536,6 +507,6 @@ def analyze_oman(req: OmanIntelRequest):
             cve_source=cve_source,
         )
         return result
-    except Exception as e:
+    except Exception:
         logger.exception("Oman intel error")
-        raise HTTPException(500, detail=str(e))
+        raise HTTPException(500, detail="Oman intelligence query failed")
